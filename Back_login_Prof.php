@@ -6,12 +6,10 @@
     $json = file_get_contents(__DIR__ . '/json/Prof.json'); //参照するjsonファイルを指定
     $data_Prof = json_decode($json, true); //jsonファイルを配列に変換
 
+    $_SESSION['Prof_loginSuccess'] = false; //Prof_loginSuccessのフラグをfalseに設定。管理者モードになっていないことを示す。
     //パスワードが一致するかの確認
     if($data_Prof[0]['password'] == $_POST['password']){
-        $_SESSION['prof_login_Success'] = true; //prof_login_Successのフラグをtrueに設定。管理者モードになっていることを示す。
-    }
-    else{
-        $_SESSION['prof_login_Success'] = false; //prof_login_Successのフラグをfalseに設定。管理者モードになっていないことを示す。
+        $_SESSION['Prof_loginSuccess'] = true; //Prof_loginSuccessのフラグをtrueに設定。管理者モードになっていることを示す。
     }
 
     header('Location: index.php'); //トップページへ遷移
