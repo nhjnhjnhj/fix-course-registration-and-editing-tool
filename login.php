@@ -13,6 +13,27 @@
 
     if($code == HTTP_OK){
         
+        //Back_login_Student.phpでログインに失敗した場合、セッション変数NotFound_Studentがtrueに設定されるので、アラートを表示する。
+        if(isset($_SESSION['NotFound_Student']) && $_SESSION['NotFound_Student'] == true){
+
+            echo '<script>alert("ユーザーが存在しません");</script>';
+            unset($_SESSION['NotFound_Student']); //セッション破棄
+        }
+
+        //Back_login_Student.phpでメールアドレスまたはパスワードが異なる場合、セッション変数incollectがtrueに設定されるので、アラートを表示する。
+        if(isset($_SESSION['incollect']) && $_SESSION['incollect'] == true){
+
+            echo '<script>alert("メールアドレスまたはパスワードが違います");</script>';
+            unset($_SESSION['incollect']); //セッション破棄
+        }
+
+        if(isset($_SESSION['empty']) && $_SESSION['empty'] == true){
+
+            echo '<script>alert("メールアドレスまたはパスワードが未入力です");</script>';
+            unset($_SESSION['empty']); //セッション破棄
+        }
+
+
         //メールアドレス、氏名、パスワードを入力するフォームを作成。ログインの場合は、resist_tableでメアド・パスワード欄を表示しない。
         echo '<form method="post" action="Back_login_Student.php">';
         echo 'メールアドレス';
@@ -21,8 +42,6 @@
         echo '<input type = "password" name = "password"><br>';
         echo '<button type="submit">ログイン</button><br>';
         echo '</form>';
-
-        echo '<button onclick="location.href=\'resist_new_table.php\'">新規登録</button><br>'; //授業登録ページへ遷移。新規登録の場合は、resist_tableでメアド・パスワード欄を表示する。
 
         echo '<button onclick="location.href=\'index.php\'">トップページへ戻る</button>'; //トップページへ遷移
 

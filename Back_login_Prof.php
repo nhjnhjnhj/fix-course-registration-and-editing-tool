@@ -7,9 +7,23 @@
     $data_Prof = json_decode($json, true); //jsonファイルを配列に変換
 
     $_SESSION['Prof_loginSuccess'] = false; //Prof_loginSuccessのフラグをfalseに設定。管理者モードになっていないことを示す。
+
+    //同一セッションで過去に学生としてログインした状態が残っていると、Profログイン後もresist_logined_table.phpで学年欄が表示されてしまうためクリアする
+    unset($_SESSION['Student_login_Success']);
+    unset($_SESSION['student_json_file']);
+    unset($_SESSION['student_index']);
+
     //パスワードが一致するかの確認
     if($data_Prof[0]['password'] == $_POST['password']){
         $_SESSION['Prof_loginSuccess'] = true; //Prof_loginSuccessのフラグをtrueに設定。管理者モードになっていることを示す。
+    }
+
+    else if($_POST['password'] == ''){
+        $_SESSION['empty'] = true;
+    }
+    
+    else if($data_Prof[0]['password'] != $_POST['password']){
+        $_SESSION['incollect'] = true;
     }
 
     header('Location: index.php'); //トップページへ遷移

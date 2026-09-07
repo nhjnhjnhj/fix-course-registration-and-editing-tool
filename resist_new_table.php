@@ -167,6 +167,8 @@
         echo '<button type="reset">リセット</button>';
         echo '</form>';
 
+        echo '<button onclick="location.href=\'index.php\'">トップページへ</button>';
+
         //クオーターを切り替えても入力内容を保持し、送信時は全クオーター分をまとめて送るためのJS
         //→ JSのquarterDataの初期値として、学期ごとの時間割データをPHP側で組み立てておく
         $quarterLabelMap = array('1Q' => 'Quarter1', '2Q' => 'Quarter2', '3Q' => 'Quarter3', '4Q' => 'Quarter4');

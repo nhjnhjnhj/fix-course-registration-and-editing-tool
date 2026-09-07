@@ -18,19 +18,29 @@
     const QUOTER_NAME = array('1Q','2Q','3Q','4Q'); //学年の配列
     const DAY_NAME = array('月','火','水','木','金','土'); //クオーターの配列
     const JSON_DAY_NAME = array('Mon','Tue','Wed','Thu','Fri','Sat'); //jsonファイルの曜日要素の配列
-    const GRADE_JSON_FILE = array('B3' => 'B3.json', 'B4' => 'B4.json', 'M1' => 'Master.json', 'M2' => 'Master.json', 'Prof' => 'Prof.json'); //学年とjsonファイル名の対応('ハイライト'は対応するjsonが無いので未対応)
+    const GRADE_JSON_FILE = array('B3' => 'B3.json', 'B4' => 'B4.json', 'M1' => 'Master.json', 'M2' => 'Master.json', 'Prof' => 'Prof.json'); //学年とjsonファイル名の対応
 
     if($code == HTTP_OK){
         session_start();
 
+        //登録、削除についてのポップアップ
         if(isset($_SESSION['resist_success']) && $_SESSION['resist_success'] == true){ //登録完了ポップアップ(仮実装。後ほど作成予定)
             echo '<script>alert("登録が完了しました");</script>';
             unset($_SESSION['resist_success']);
         }
-
         if(isset($_SESSION['delete_success']) && $_SESSION['delete_success'] == true){ //削除完了ポップアップ(仮実装。後ほど作成予定)
             echo '<script>alert("削除が完了しました");</script>';
             unset($_SESSION['delete_success']);
+        }
+
+        //管理者ログインについてのポップアップ
+        if(isset($_SESSION['incollect']) && $_SESSION['incollect'] == true){ //管理者モードでのログインに失敗した場合、セッション変数incollectがtrueに設定されるので、アラートを表示する。
+            echo '<script>alert("パスワードが違います");</script>';
+            unset($_SESSION['incollect']); //セッション破棄
+        }
+        if(isset($_SESSION['empty']) && $_SESSION['empty'] == true){ //管理者モードでのログインに失敗した場合、セッション変数incollectがtrueに設定されるので、アラートを表示する。
+            echo '<script>alert("パスワードが未入力です");</script>';
+            unset($_SESSION['empty']); //セッション破棄
         }
 
         echo 'トップページ<br>';
@@ -53,6 +63,25 @@
         $realSelectedGrades = array_diff($selectedGrades, array('ハイライト'));
         $highlightEnabled = in_array('ハイライト', $selectedGrades, true) && count($realSelectedGrades) > 0;
 
+        //特定の学生のみを表示するプルダウン用に、選択中の学生名をURLパラメータから取得(未選択なら絞り込みなし)
+        $selectedStudentName = (isset($_GET['studentName']) && $_GET['studentName'] !== '') ? $_GET['studentName'] : null;
+
+        //チェックが付いている学年に対応するJSONファイル・学年の一覧を作成(プルダウン・表本体の集計の両方で使う)
+        $gradesByFile = array();
+        foreach($selectedGrades as $grade){
+            if(isset(GRADE_JSON_FILE[$grade])){
+                $gradesByFile[GRADE_JSON_FILE[$grade]][] = $grade;
+            }
+        }
+
+        //各ファイルの内容を先読みしておく(プルダウンの氏名収集と表本体の集計で使い回す)
+        $recordsByFile = array();
+        foreach($gradesByFile as $file => $grades){
+            $json = file_get_contents(__DIR__ . '/json/' . $file);
+            $records = ($json !== false) ? json_decode($json, true) : null;
+            $recordsByFile[$file] = is_array($records) ? $records : array();
+        }
+
         echo '<form method="get" action="index.php">';
 
         //チェックボックスの作成(変更時にフォームを自動送信して表示を更新する)
@@ -60,7 +89,36 @@
             $checkedAttr = in_array(GRADE_NAME[$i], $selectedGrades, true) ? ' checked' : '';
             echo '<label><input type="checkbox" name="grades[]" value="'.(GRADE_NAME[$i]).'" onchange="this.form.submit()"'.$checkedAttr.'>'.(GRADE_NAME[$i]).'</label>';
         }
+
+        //「ハイライト」チェックボックス(学年データを持たない特殊なチェックボックス)
+        $highlightCheckedAttr = in_array(HIGHLIGHT, $selectedGrades, true) ? ' checked' : '';
+        echo '<label><input type="checkbox" name="grades[]" value="'.HIGHLIGHT.'" onchange="this.form.submit()"'.$highlightCheckedAttr.'>'.HIGHLIGHT.'</label>';
         echo '<br>';
+
+        //特定の学生のみを表示するプルダウン(チェックが付いている学年に対応するファイル・学年のレコードからのみ氏名を集める)
+        $studentNames = array();
+        foreach($gradesByFile as $file => $grades){
+            foreach($recordsByFile[$file] as $record){
+                if(!in_array($record['grade'] ?? '', $grades, true)){
+                    continue; //チェックされていない学年のレコードは無視(Master.json対策)
+                }
+                if(isset($record['name']) && $record['name'] !== ''){
+                    $studentNames[] = $record['name'];
+                }
+            }
+        }
+        $studentNames = array_values(array_unique($studentNames));
+        sort($studentNames);
+
+        echo '<label>表示する学生<select name="studentName" onchange="this.form.submit()">';
+        echo '<option value=""' . ($selectedStudentName === null ? ' selected' : '') . '>(指定なし)</option>';
+        foreach($studentNames as $name){
+            $selectedAttr = ($selectedStudentName === $name) ? ' selected' : '';
+            echo '<option value="'.htmlspecialchars($name, ENT_QUOTES, 'UTF-8').'"'.$selectedAttr.'>'.htmlspecialchars($name, ENT_QUOTES, 'UTF-8').'</option>';
+        }
+        echo '</select></label>';
+        echo '<br>';
+
         for($i = 0 ; $i < QUOTER_COUNT ; $i++){
             $checkedAttr = (QUOTER_NAME[$i] == $selectedQuarter) ? ' checked' : '';
             echo '<label><input type="radio" name="quarter" value="'.(QUOTER_NAME[$i]).'" onchange="this.form.submit()"'.$checkedAttr.'>'.(QUOTER_NAME[$i]).'</label>';
@@ -86,21 +144,18 @@
             }
         }
 
-        $gradesByFile = array();
-        foreach($selectedGrades as $grade){
-            if(isset(GRADE_JSON_FILE[$grade])){
-                $gradesByFile[GRADE_JSON_FILE[$grade]][] = $grade;
-            }
-        }
-
         foreach($gradesByFile as $file => $grades){
-            $json = file_get_contents(__DIR__ . '/json/' . $file);
-            $records = ($json !== false) ? json_decode($json, true) : null;
+            $records = $recordsByFile[$file];
 
             if(is_array($records)){
                 foreach($records as $record){
                     if(!in_array($record['grade'] ?? '', $grades, true)){
                         continue; //選択された学年と一致しないレコードは無視(Master.json対策)
+                    }
+
+                    //プルダウンで学生が指定されている場合、その学生以外のレコードは無視(学年フィルタとは併用可)
+                    if($selectedStudentName !== null && ($record['name'] ?? '') !== $selectedStudentName){
+                        continue;
                     }
 
                     foreach(JSON_DAY_NAME as $day){
@@ -186,7 +241,8 @@
         echo '</table>';
 
         if(!isset($_SESSION['Prof_loginSuccess']) || $_SESSION['Prof_loginSuccess'] != true){ //管理者モードの時は生徒用の「ログイン・登録」ボタンは表示しない
-            echo '<button onclick="location.href=\'login.php\'">ログイン・登録</button><br>';
+            echo '<button onclick="location.href=\'login.php\'">ログイン</button><br>';
+            echo '<button onclick="location.href=\'resist_new_table.php\'">新規登録</button><br>'; //授業登録ページへ遷移。新規登録の場合は、resist_tableでメアド・パスワード欄を表示する。
         }
 
         if(!isset($_SESSION['Prof_loginSuccess']) || $_SESSION['Prof_loginSuccess'] != true){ //ログインに失敗してPof_loginSuccessがfalseで確定した場合でもフォームを再表示できるようにする

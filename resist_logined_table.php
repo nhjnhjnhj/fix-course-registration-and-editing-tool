@@ -37,7 +37,7 @@
 
     if($code == HTTP_OK){
 
-        if(isset($_SESSION['Student_login_Success']) && $_SESSION['Student_login_Success'] == true){
+        if(isset($_SESSION['Student_login_Success']) && $_SESSION['Student_login_Success'] == true ){
 
             //Back_login_Studentで定義したログインした学生の学年を参照
             $jsonFile = __DIR__ . '/json/' . $_SESSION['student_json_file'];
@@ -52,18 +52,23 @@
         echo '<form id="resistForm" method="post" action="resist_check.php">';
         echo '<input type="hidden" name="mode" value="logined">';
 
-        echo '学年<br>';
-        for($i = 0 ; $i < GRADE_COUNT ; $i++){
+        if(isset($_SESSION['Student_login_Success']) && $_SESSION['Student_login_Success'] == true && $_SESSION['student_json_file'] !== 'Prof.json'){
 
-            if($i == 0){
-                echo '<label><input type="radio" name="grade" value="'.(GRADE_NAME[$i]).'" checked>'.(GRADE_NAME[$i]).'</label>'; //デフォルトで最初の値が選択されている状態にする。
-            }
-            else{
-                echo '<label><input type="radio" name="grade" value="'.(GRADE_NAME[$i]).'">'.(GRADE_NAME[$i]).'</label>';
+            echo '学年<br>';
+
+            for($i = 0 ; $i < GRADE_COUNT ; $i++){
+
+                if($i == 0){
+                    echo '<label><input type="radio" name="grade" value="'.(GRADE_NAME[$i]).'" checked>'.(GRADE_NAME[$i]).'</label>'; //デフォルトで最初の値が選択されている状態にする。
+                }
+                else{
+                    echo '<label><input type="radio" name="grade" value="'.(GRADE_NAME[$i]).'">'.(GRADE_NAME[$i]).'</label>';
+                }
+
             }
 
+            echo '<br>';
         }
-        echo '<br>';
 
         echo '学期<br>';
         for($i = 0 ; $i < QUOTER_COUNT ; $i++){
