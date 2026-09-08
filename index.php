@@ -1,280 +1,300 @@
+<?php
+session_start();
+require_once __DIR__ . '/new_semester_functions.php';
+
+// 画面表示と時間割データで使用する設定（共通化はデザイン統合後に実施）
+$filterGradeNames = array('B3', 'B4', 'M1', 'M2', 'Prof');
+$quarterNames = array('1Q', '2Q', '3Q', '4Q');
+$indexDayNames = array('Mon.', 'Tue.', 'Wed.', 'Thu.', 'Fri.', 'Sat.');
+$jsonDayNames = array('Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat');
+$gradeJsonFiles = array(
+    'B3' => 'B3.json',
+    'B4' => 'B4.json',
+    'M1' => 'M1.json',
+    'M2' => 'M2.json',
+    'Prof' => 'Prof.json',
+);
+$gradeTagClasses = array(
+    'B3' => 'grade-b3',
+    'B4' => 'grade-b4',
+    'M1' => 'grade-m1',
+    'M2' => 'grade-m2',
+    'Prof' => 'grade-prof'
+);
+
+// 登録・削除・管理者ログイン後のメッセージ
+$message = '';
+$messageClass = 'notice';
+if (!empty($_SESSION['resist_success'])) {
+    $message = '登録が完了しました';
+    unset($_SESSION['resist_success']);
+} elseif (!empty($_SESSION['delete_success'])) {
+    $message = '削除が完了しました';
+    unset($_SESSION['delete_success']);
+} elseif (!empty($_SESSION['delete_all_success'])) {
+    $message = '全ての学生・先生のデータを削除しました';
+    unset($_SESSION['delete_all_success']);
+} elseif (!empty($_SESSION['delete_prof_class_success'])) {
+    $message = '先生の時間割をクリアしました';
+    unset($_SESSION['delete_prof_class_success']);
+} elseif (!empty($_SESSION['incollect'])) {
+    $message = '管理者パスワードが違います';
+    $messageClass = 'notice notice-error';
+    unset($_SESSION['incollect']);
+} elseif (!empty($_SESSION['empty'])) {
+    $message = '管理者パスワードが未入力です';
+    $messageClass = 'notice notice-error';
+    unset($_SESSION['empty']);
+}
+
+// URLパラメータから表示条件を取得
+$selectedGrades = isset($_GET['grades']) && is_array($_GET['grades']) ? $_GET['grades'] : [];
+$allowedFilters = array_merge($filterGradeNames, array('ハイライト'));
+$selectedGrades = array_values(array_intersect($selectedGrades, $allowedFilters));
+$requestedQuarter = isset($_GET['quarter']) ? $_GET['quarter'] : '';
+$selectedQuarter = in_array($requestedQuarter, $quarterNames, true) ? $requestedQuarter : '1Q';
+$viewMode = isset($_GET['viewMode']) && $_GET['viewMode'] === 'detail' ? 'detail' : 'summary';
+$realSelectedGrades = array_diff($selectedGrades, ['ハイライト']);
+$highlightEnabled = in_array('ハイライト', $selectedGrades, true) && count($realSelectedGrades) > 0;
+$isProfessor = !empty($_SESSION['Prof_loginSuccess']);
+$selectedStudentName = isset($_GET['studentName']) && $_GET['studentName'] !== ''
+    ? $_GET['studentName']
+    : null;
+
+// 選択された授業を曜日・時限ごとに集計
+$cellClasses = [];
+foreach ($jsonDayNames as $day) {
+    for ($period = 1; $period <= 5; $period++) {
+        $cellClasses[$day][$period] = [];
+    }
+}
+
+$gradesByFile = [];
+foreach ($realSelectedGrades as $grade) {
+    if (isset($gradeJsonFiles[$grade])) {
+        $gradesByFile[$gradeJsonFiles[$grade]][] = $grade;
+    }
+}
+
+$recordsByFile = [];
+foreach ($gradesByFile as $file => $grades) {
+    $json = @file_get_contents(__DIR__ . '/json/' . $file);
+    $records = $json !== false ? json_decode($json, true) : null;
+    $recordsByFile[$file] = is_array($records) ? $records : [];
+}
+
+// 選択中の学年から学生名の絞り込み候補を作成する。
+$studentNames = [];
+foreach ($gradesByFile as $file => $grades) {
+    foreach ($recordsByFile[$file] as $record) {
+        $recordGrade = isset($record['grade']) ? $record['grade'] : '';
+        if (in_array($recordGrade, $grades, true) && !empty($record['name'])) {
+            $studentNames[] = $record['name'];
+        }
+    }
+}
+$studentNames = array_values(array_unique($studentNames));
+sort($studentNames);
+
+// 選択中の学年に該当する学生がいなくなった場合は、氏名の絞り込みを解除する。
+if ($selectedStudentName !== null && !in_array($selectedStudentName, $studentNames, true)) {
+    $selectedStudentName = null;
+}
+
+$quarterKey = 'Quarter' . mb_substr($selectedQuarter, 0, 1);
+foreach ($gradesByFile as $file => $grades) {
+    $records = $recordsByFile[$file];
+
+    foreach ($records as $record) {
+        $recordGrade = isset($record['grade']) ? $record['grade'] : '';
+        $recordName = isset($record['name']) ? $record['name'] : '';
+        if (!in_array($recordGrade, $grades, true)) {
+            continue;
+        }
+        if ($selectedStudentName !== null && $recordName !== $selectedStudentName) {
+            continue;
+        }
+        foreach ($jsonDayNames as $day) {
+            for ($period = 1; $period <= 5; $period++) {
+                $periodKey = (string) $period;
+                $className = isset($record['class'][$quarterKey][$day][$periodKey])
+                    ? trim($record['class'][$quarterKey][$day][$periodKey])
+                    : '';
+                if ($className !== '') {
+                    $cellClasses[$day][$period][] = [
+                        'grade' => $recordGrade,
+                        'name' => $recordName,
+                        'class' => $className,
+                    ];
+                }
+            }
+        }
+    }
+}
+
+$quarterNumber = (int) $selectedQuarter[0];
+$termLabel = '2026年度' . ($quarterNumber <= 2 ? '前期' : '後期')
+    . ($quarterNumber % 2 === 1 ? '前半' : '後半') . "({$selectedQuarter})";
+?>
 <!DOCTYPE html>
-<html>
-    <head>
-        <meta charset="UTF-8" />
-        <title>トップページ</title>
-    </head>
-    <body>
-    
-    <?php
-    $code = http_response_code(); //HTTPレスポンスコードを取得(404 Not Foundなど)
-    const HTTP_OK = 200; //レスポンスコード200 = アクセス許可
-    const TABLE_ROW_COUNT = 6; //時間割表の行数
-    const TABLE_LINE_COUNT = 7; //時間割表の列数
-    const QUOTER_COUNT = 4; //クオーター数
-    const GRADE_COUNT = 5;  //学年の数
-    const HIGHLIGHT = 'ハイライト'; //ハイライト表示のための特殊なチェックボックス
-    const GRADE_NAME = array('B3','B4','M1','M2','Prof'); //曜日の配列
-    const QUOTER_NAME = array('1Q','2Q','3Q','4Q'); //学年の配列
-    const DAY_NAME = array('月','火','水','木','金','土'); //クオーターの配列
-    const JSON_DAY_NAME = array('Mon','Tue','Wed','Thu','Fri','Sat'); //jsonファイルの曜日要素の配列
-    const GRADE_JSON_FILE = array('B3' => 'B3.json', 'B4' => 'B4.json', 'M1' => 'M1.json', 'M2' => 'M2.json', 'Prof' => 'Prof.json'); //学年とjsonファイル名の対応
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>受講科目登録・閲覧システム</title>
+    <!-- デザインは外部CSSで管理し、PHPの処理と分離する -->
+    <link rel="stylesheet" href="assets/css/common.css">
+    <link rel="stylesheet" href="assets/css/index.css">
+    <link rel="stylesheet" href="assets/css/admin.css">
+</head>
+<body>
+<main class="page">
+    <h1 class="title">受講科目登録・閲覧システム</h1>
+    <div class="title-rule" aria-hidden="true">◆ ❄ ◆</div>
 
-    if($code == HTTP_OK){
-        session_start();
+    <?php if ($message !== ''): ?>
+        <p class="<?= $messageClass ?>"><?= htmlspecialchars($message, ENT_QUOTES, 'UTF-8') ?></p>
+    <?php endif; ?>
 
-        //登録、削除についてのポップアップ
-        if(isset($_SESSION['resist_success']) && $_SESSION['resist_success'] == true){ //登録完了ポップアップ(仮実装。後ほど作成予定)
-            echo '<script>alert("登録が完了しました");</script>';
-            unset($_SESSION['resist_success']);
-        }
-        if(isset($_SESSION['delete_success']) && $_SESSION['delete_success'] == true){ //削除完了ポップアップ(仮実装。後ほど作成予定)
-            echo '<script>alert("削除が完了しました");</script>';
-            unset($_SESSION['delete_success']);
-        }
-        if(isset($_SESSION['delete_all_success']) && $_SESSION['delete_all_success'] == true){ //全学生・先生データ削除完了ポップアップ
-            echo '<script>alert("全ての学生・先生のデータを削除しました");</script>';
-            unset($_SESSION['delete_all_success']);
-        }
-        if(isset($_SESSION['delete_prof_class_success']) && $_SESSION['delete_prof_class_success'] == true){ //Prof時間割クリア完了ポップアップ
-            echo '<script>alert("先生の時間割をクリアしました");</script>';
-            unset($_SESSION['delete_prof_class_success']);
-        }
+    <!-- 学年、ハイライト、表示形式の選択 -->
+    <form id="filter-form" method="get" action="index.php">
+        <section class="filters" aria-label="表示条件">
+            <?php foreach ($filterGradeNames as $grade): ?>
+                <label><input type="checkbox" name="grades[]" value="<?= $grade ?>" <?= in_array($grade, $selectedGrades, true) ? 'checked' : '' ?> onchange="this.form.submit()"> <?= $grade === 'Prof' ? '教員' : $grade ?></label>
+            <?php endforeach; ?>
+            <label><input type="checkbox" name="grades[]" value="ハイライト" <?= $highlightEnabled ? 'checked' : '' ?> onchange="this.form.submit()"> ハイライト</label>
+            <label class="student-filter">表示する学生
+                <select name="studentName" onchange="this.form.submit()">
+                    <option value="" <?= $selectedStudentName === null ? 'selected' : '' ?>>(指定なし)</option>
+                    <?php foreach ($studentNames as $studentName): ?>
+                        <option value="<?= htmlspecialchars($studentName, ENT_QUOTES, 'UTF-8') ?>" <?= $studentName === $selectedStudentName ? 'selected' : '' ?>><?= htmlspecialchars($studentName, ENT_QUOTES, 'UTF-8') ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </label>
+            <select name="viewMode" aria-label="表示形式" onchange="this.form.submit()">
+                <option value="summary" <?= $viewMode === 'summary' ? 'selected' : '' ?>>サマリ表示</option>
+                <option value="detail" <?= $viewMode === 'detail' ? 'selected' : '' ?>>詳細表示</option>
+            </select>
+        </section>
 
-        //管理者ログインについてのポップアップ
-        if(isset($_SESSION['incollect']) && $_SESSION['incollect'] == true){ //管理者モードでのログインに失敗した場合、セッション変数incollectがtrueに設定されるので、アラートを表示する。
-            echo '<script>alert("パスワードが違います");</script>';
-            unset($_SESSION['incollect']); //セッション破棄
-        }
-        if(isset($_SESSION['empty']) && $_SESSION['empty'] == true){ //管理者モードでのログインに失敗した場合、セッション変数incollectがtrueに設定されるので、アラートを表示する。
-            echo '<script>alert("パスワードが未入力です");</script>';
-            unset($_SESSION['empty']); //セッション破棄
-        }
+        <section class="summary">
+            <div class="term">
+                <span class="calendar" aria-hidden="true">🗓</span>
+                <span><?= htmlspecialchars($termLabel, ENT_QUOTES, 'UTF-8') ?></span>
+                <img class="mascot" src="photo/第<?= $quarterNumber ?>Q.png" alt="第<?= $quarterNumber ?>Qを案内するペンギン">
+            </div>
+            <?php if ($isProfessor): ?>
+                <a class="edit-button" href="Prof_enter_table.php"><span aria-hidden="true">❄</span> 時間割登録・編集</a>
+            <?php else: ?>
+                <!-- JavaScriptを使わず、同じ画面内にログイン方法を表示する -->
+                <details class="edit-menu">
+                    <summary class="edit-button"><span aria-hidden="true">❄</span> 時間割登録・編集</summary>
+                    <div class="edit-options">
+                        <a href="login.php">ログイン</a>
+                        <a href="resist_new_table.php">新規登録</a>
+                    </div>
+                </details>
+            <?php endif; ?>
+        </section>
 
-        echo 'トップページ<br>';
+        <nav class="quarter-tabs" aria-label="クォーター選択">
+            <?php foreach ($quarterNames as $quarter): ?>
+                <label class="quarter-tab <?= $quarter === $selectedQuarter ? 'active' : '' ?>">
+                    <input type="radio" name="quarter" value="<?= $quarter ?>" <?= $quarter === $selectedQuarter ? 'checked' : '' ?> onchange="this.form.submit()">
+                    <?= $quarter ?>
+                </label>
+            <?php endforeach; ?>
+        </nav>
+    </form>
 
-        /*login_Profを経由してログインした場合(login_Profでのフラグが設定されている場合)のみボタンを表示する予定*/
-        if(isset($_SESSION['Prof_loginSuccess']) && $_SESSION['Prof_loginSuccess'] == true){
-            echo '管理者モードでログインしています。<br>';
+    <!-- 曜日・時限別の時間割 -->
+    <div class="schedule-wrap">
+        <table class="schedule">
+            <thead>
+                <tr><th class="corner" aria-label="編集">✎</th><?php foreach ($indexDayNames as $day): ?><th scope="col"><?= $day ?></th><?php endforeach; ?></tr>
+            </thead>
+            <tbody>
+                <?php for ($period = 1; $period <= 5; $period++): ?>
+                    <tr>
+                        <th class="period" scope="row"><?= $period ?></th>
+                        <?php foreach ($jsonDayNames as $day): ?>
+                            <?php $isHighlighted = $highlightEnabled && empty($cellClasses[$day][$period]); ?>
+                            <td class="<?= $isHighlighted ? 'highlighted' : '' ?>">
+                                <?php foreach ($cellClasses[$day][$period] as $entry): ?>
+                                    <?php if ($viewMode === 'detail'): ?>
+                                        <div class="course-detail">
+                                            <strong><?= htmlspecialchars($entry['grade'], ENT_QUOTES, 'UTF-8') ?></strong>
+                                            <?= htmlspecialchars($entry['name'], ENT_QUOTES, 'UTF-8') ?><br>
+                                            <?= htmlspecialchars($entry['class'], ENT_QUOTES, 'UTF-8') ?>
+                                        </div>
+                                    <?php else: ?>
+                                        <?php $tooltip = '氏名: ' . $entry['name'] . "\n授業: " . $entry['class']; ?>
+                                        <?php $gradeTagClass = isset($gradeTagClasses[$entry['grade']]) ? $gradeTagClasses[$entry['grade']] : ''; ?>
+                                        <span class="course-tag <?= $gradeTagClass ?>" title="<?= htmlspecialchars($tooltip, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($entry['grade'], ENT_QUOTES, 'UTF-8') ?></span>
+                                    <?php endif; ?>
+                                <?php endforeach; ?>
+                            </td>
+                        <?php endforeach; ?>
+                    </tr>
+                <?php endfor; ?>
+            </tbody>
+        </table>
+    </div>
 
-        }
-        else {
-            echo '管理者モードでログインしていません。<br>';
-        }
+    <?php if ($isProfessor): ?>
+        <!-- 管理者向けの機能を追加しやすいカード形式でまとめる -->
+        <section class="admin-tools" aria-labelledby="admin-tools-title">
+            <div class="admin-tools-heading">
+                <div>
+                    <h2 id="admin-tools-title">管理者ツール</h2>
+                    <p>学生データや時間割に関する管理操作を行います。</p>
+                </div>
+                <span class="admin-tools-badge">管理者専用</span>
+            </div>
 
-        //選択されている学年(チェックボックス)・学期(ラジオボタン)・表示モードをURLパラメータから取得(未選択時のデフォルトは学期1Q、summaryモード)
-        $selectedGrades = (isset($_GET['grades']) && is_array($_GET['grades'])) ? $_GET['grades'] : array();
-        $selectedQuarter = isset($_GET['quarter']) ? $_GET['quarter'] : '1Q';
-        $viewMode = (isset($_GET['viewMode']) && $_GET['viewMode'] === 'detail') ? 'detail' : 'summary';
+            <div class="admin-tool-grid">
+                <article class="admin-tool-card semester-tool-card">
+                    <span class="admin-tool-icon" aria-hidden="true">🗓</span>
+                    <h3>新学期開始</h3>
+                    <p>B3→B4→M1→M2の順に学生データを進級させます。</p>
+                    <form method="post" action="new_semester.php">
+                        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(nspGetCsrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
+                        <button class="admin-tool-button new-semester-button" type="submit">確認画面へ</button>
+                    </form>
+                </article>
 
-        //「ハイライト」は学年データを持たない特殊なチェックボックスなので、他の学年選択から分離して扱う
-        $realSelectedGrades = array_diff($selectedGrades, array('ハイライト'));
-        $highlightEnabled = in_array('ハイライト', $selectedGrades, true) && count($realSelectedGrades) > 0;
+                <article class="admin-tool-card initialize-tool-card">
+                    <span class="admin-tool-icon" aria-hidden="true">🗑</span>
+                    <h3>ファイル初期化</h3>
+                    <p>対象ファイルを選択し、データを初期状態へ戻します。</p>
+                    <a class="button admin-tool-button initialize-button" href="delete_all.php">初期化画面へ</a>
+                </article>
 
-        //特定の学生のみを表示するプルダウン用に、選択中の学生名をURLパラメータから取得(未選択なら絞り込みなし)
-        $selectedStudentName = (isset($_GET['studentName']) && $_GET['studentName'] !== '') ? $_GET['studentName'] : null;
+                <article class="admin-tool-card editor-tool-card">
+                    <span class="admin-tool-icon" aria-hidden="true">✎</span>
+                    <h3>エディタ</h3>
+                    <p>JSONデータの内容を管理画面から確認・編集します。</p>
+                    <a class="button admin-tool-button editor-button" href="student_editor.php">エディタを開く</a>
+                </article>
+            </div>
 
-        //チェックが付いている学年に対応するJSONファイル・学年の一覧を作成(プルダウン・表本体の集計の両方で使う)
-        $gradesByFile = array();
-        foreach($selectedGrades as $grade){
-            if(isset(GRADE_JSON_FILE[$grade])){
-                $gradesByFile[GRADE_JSON_FILE[$grade]][] = $grade;
-            }
-        }
+            <small class="admin-tools-note">新学期開始、ファイル初期化、学生時間割エディタを利用できます。</small>
+        </section>
+    <?php endif; ?>
 
-        //各ファイルの内容を先読みしておく(プルダウンの氏名収集と表本体の集計で使い回す)
-        $recordsByFile = array();
-        foreach($gradesByFile as $file => $grades){
-            $json = file_get_contents(__DIR__ . '/json/' . $file);
-            $records = ($json !== false) ? json_decode($json, true) : null;
-            $recordsByFile[$file] = is_array($records) ? $records : array();
-        }
-
-        echo '<form method="get" action="index.php">';
-
-        //チェックボックスの作成(変更時にフォームを自動送信して表示を更新する)
-        for($i = 0 ; $i < GRADE_COUNT ; $i++){
-            $checkedAttr = in_array(GRADE_NAME[$i], $selectedGrades, true) ? ' checked' : '';
-            echo '<label><input type="checkbox" name="grades[]" value="'.(GRADE_NAME[$i]).'" onchange="this.form.submit()"'.$checkedAttr.'>'.(GRADE_NAME[$i]).'</label>';
-        }
-
-        //「ハイライト」チェックボックス(学年データを持たない特殊なチェックボックス)
-        $highlightCheckedAttr = in_array(HIGHLIGHT, $selectedGrades, true) ? ' checked' : '';
-        echo '<label><input type="checkbox" name="grades[]" value="'.HIGHLIGHT.'" onchange="this.form.submit()"'.$highlightCheckedAttr.'>'.HIGHLIGHT.'</label>';
-        echo '<br>';
-
-        //特定の学生のみを表示するプルダウン(チェックが付いている学年に対応するファイル・学年のレコードからのみ氏名を集める)
-        $studentNames = array();
-        foreach($gradesByFile as $file => $grades){
-            foreach($recordsByFile[$file] as $record){
-                if(!in_array($record['grade'] ?? '', $grades, true)){
-                    continue; //チェックされていない学年のレコードは無視
-                }
-                if(isset($record['name']) && $record['name'] !== ''){
-                    $studentNames[] = $record['name'];
-                }
-            }
-        }
-        $studentNames = array_values(array_unique($studentNames));
-        sort($studentNames);
-
-        echo '<label>表示する学生<select name="studentName" onchange="this.form.submit()">';
-        echo '<option value=""' . ($selectedStudentName === null ? ' selected' : '') . '>(指定なし)</option>';
-        foreach($studentNames as $name){
-            $selectedAttr = ($selectedStudentName === $name) ? ' selected' : '';
-            echo '<option value="'.htmlspecialchars($name, ENT_QUOTES, 'UTF-8').'"'.$selectedAttr.'>'.htmlspecialchars($name, ENT_QUOTES, 'UTF-8').'</option>';
-        }
-        echo '</select></label>';
-        echo '<br>';
-
-        for($i = 0 ; $i < QUOTER_COUNT ; $i++){
-            $checkedAttr = (QUOTER_NAME[$i] == $selectedQuarter) ? ' checked' : '';
-            echo '<label><input type="radio" name="quarter" value="'.(QUOTER_NAME[$i]).'" onchange="this.form.submit()"'.$checkedAttr.'>'.(QUOTER_NAME[$i]).'</label>';
-        }
-        echo '<br>';
-
-        //表示モードの切り替え(summary: 学年のみ+ツールチップ / detail: 学年・名前・授業名を常時表示)
-        $summaryCheckedAttr = ($viewMode == 'summary') ? ' checked' : '';
-        $detailCheckedAttr = ($viewMode == 'detail') ? ' checked' : '';
-        echo '<label><input type="radio" name="viewMode" value="summary" onchange="this.form.submit()"'.$summaryCheckedAttr.'>summaryモード</label>';
-        echo '<label><input type="radio" name="viewMode" value="detail" onchange="this.form.submit()"'.$detailCheckedAttr.'>詳細表示モード</label>';
-        echo '<br>';
-        echo '</form>';
-
-        //選択された学年・学期に登録されている授業を曜日・限ごとに集計する
-        $quarterKey = 'Quarter' . mb_substr($selectedQuarter, 0, 1);
-        $cellClasses = array();
-        foreach(JSON_DAY_NAME as $day){
-            $cellClasses[$day] = array();
-            for($p = 1 ; $p <= 5 ; $p++){
-                $cellClasses[$day][$p] = array();
-            }
-        }
-
-        foreach($gradesByFile as $file => $grades){
-            $records = $recordsByFile[$file];
-
-            if(is_array($records)){
-                foreach($records as $record){
-                    if(!in_array($record['grade'] ?? '', $grades, true)){
-                        continue; //選択された学年と一致しないレコードは無視
-                    }
-
-                    //プルダウンで学生が指定されている場合、その学生以外のレコードは無視(学年フィルタとは併用可)
-                    if($selectedStudentName !== null && ($record['name'] ?? '') !== $selectedStudentName){
-                        continue;
-                    }
-
-                    foreach(JSON_DAY_NAME as $day){
-                        for($p = 1 ; $p <= 5 ; $p++){
-                            $value = trim($record['class'][$quarterKey][$day][(string)$p] ?? '');
-                            if($value !== ''){
-                                //セルには学年の文字列だけを表示し、氏名・授業名はカーソルを合わせた時のツールチップ(title属性)で見せる
-                                $cellClasses[$day][$p][] = array(
-                                    'grade' => $record['grade'] ?? '',
-                                    'name' => $record['name'] ?? '',
-                                    'class' => $value
-                                );
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-
-        echo '<table border="1" width="1600" cellpadding="10">'; //表の枠の太さ、幅、セルの余白を指定
-            
-        for( $i = 0 ; $i < TABLE_ROW_COUNT ; $i++){ //0を科目の行、1~5を授業の限とする
-
-            echo '<tr>';
-
-            if($i == 0){ //0行目は曜日の行
-
-                for( $j = 0 ; $j < TABLE_LINE_COUNT ; $j++){ //月～土
-
-                    if($j == 0){ //[0,0]は空白。元システムでは鉛筆のアイコンから編集が出来る。
-                        echo '<th></th>';
-                        continue;
-                    }
-
-                    echo '<th>' . DAY_NAME[$j-1] . '</th>'; //[0,$j]で曜日を出力
-
-                }
-
-            }
-
-            else{
-
-                 for( $j = 0 ; $j < TABLE_LINE_COUNT ; $j++){ //月～土
-
-                    if($j == 0){ //[&i,0]は限を出力
-                        echo '<td>' .$i . '</td>'; //[&i,0]で限を出力
-                        continue;
-                    }
-
-                    //[&i,&j]には該当する曜日・限に登録されている授業を一覧表示(複数あれば区切って並べる)
-                    //summaryモード: 学年のみ表示し、カーソルを合わせると氏名・授業名をツールチップ表示
-                    //詳細表示モード: 学年・名前・授業名を常時表示(ツールチップなし)
-                    $day = JSON_DAY_NAME[$j-1];
-
-                    //ハイライト: 選択中の学年の学生が誰もこの曜日・限に授業を登録していない(空)場合、bgcolor属性で背景を黄色にする(CSSは使わない)
-                    $isEmptySlot = empty($cellClasses[$day][$i]);
-                    $tdAttr = ($highlightEnabled && $isEmptySlot) ? ' bgcolor="yellow"' : '';
-
-                    if($viewMode == 'detail'){
-                        $entries = array_map(function($e){
-                            return '学年: '.htmlspecialchars($e['grade'], ENT_QUOTES, 'UTF-8')
-                                .' 名前: '.htmlspecialchars($e['name'], ENT_QUOTES, 'UTF-8')
-                                .' 授業: '.htmlspecialchars($e['class'], ENT_QUOTES, 'UTF-8');
-                        }, $cellClasses[$day][$i]);
-                        echo '<td'.$tdAttr.'>' . implode('<hr>', $entries) . '</td>';
-                    }
-                    else{
-                        $entries = array_map(function($e){
-                            $title = '氏名: ' . $e['name'] . "\n" . '授業: ' . $e['class'];
-                            return '<span title="'.htmlspecialchars($title, ENT_QUOTES, 'UTF-8').'">'.htmlspecialchars($e['grade'], ENT_QUOTES, 'UTF-8').'</span>';
-                        }, $cellClasses[$day][$i]);
-                        echo '<td'.$tdAttr.'>' . implode('<br>', $entries) . '</td>';
-                    }
-
-                }
-            }
-            echo '</tr>'; //1行分
-        }
-
-        //管理者モードに変更するためのフォーム
-
-        echo '</table>';
-
-        if(!isset($_SESSION['Prof_loginSuccess']) || $_SESSION['Prof_loginSuccess'] != true){ //管理者モードの時は生徒用の「ログイン・登録」ボタンは表示しない
-            echo '<button onclick="location.href=\'login.php\'">ログイン</button><br>';
-            echo '<button onclick="location.href=\'resist_new_table.php\'">新規登録</button><br>'; //授業登録ページへ遷移。新規登録の場合は、resist_tableでメアド・パスワード欄を表示する。
-        }
-
-        if(!isset($_SESSION['Prof_loginSuccess']) || $_SESSION['Prof_loginSuccess'] != true){ //ログインに失敗してPof_loginSuccessがfalseで確定した場合でもフォームを再表示できるようにする
-            echo '(管理者)パスワード<br>';
-            echo '<form method="post" action="Back_login_Prof.php">';  //Back_login_Profに遷移
-            echo '<input type = "password" name = password><br>'; //管理者パスワードの入力フォーム
-            echo '<button type="submit">ログイン</button><br>';
-            echo '</form>';
-        }
-
-        if(isset($_SESSION['Prof_loginSuccess']) && $_SESSION['Prof_loginSuccess'] == true){
-            echo '<button onclick="location.href=\'Prof_enter_table.php\'">Profの時間割を編集</button><br>'; //管理者モードならProfとして再ログインなしで授業登録ページへ
-            echo '<button onclick="location.href=\'delete_all.php\'">全ての学生・先生の授業データを削除</button><br>'; //管理者モード限定。delete_all.phpで再度パスワード確認の上、全データを削除する。
-             echo '<button onclick="location.href=\'logout.php\'">ログアウト</button><br>';
-        }
-
-    }
-
-    else{
-        echo 'アクセス失敗';
-    }
-    
-    ?>
-    
-
+    <!-- 管理者ログインとログアウト -->
+    <div class="footer-actions">
+        <?php if ($isProfessor): ?>
+            <span class="login-status">管理者モード</span>
+            <a class="admin-button" href="logout.php">ログアウト</a>
+        <?php else: ?>
+            <form class="admin-login" method="post" action="Back_login_Prof.php">
+                <input class="login-field" type="password" name="password" aria-label="管理者パスワード" placeholder="管理者パスワード">
+                <button class="admin-button" type="submit"><span aria-hidden="true">⚙</span> 管理</button>
+            </form>
+        <?php endif; ?>
+    </div>
+</main>
 
 </body>
 </html>

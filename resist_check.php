@@ -3,8 +3,12 @@
     <head>
         <meta charset="UTF-8" />
         <title>登録確認ページ</title>
+        <!-- 登録画面と共通の時間割、確認画面用デザイン -->
+        <link rel="stylesheet" href="assets/css/common.css">
+        <link rel="stylesheet" href="assets/css/resist.css">
+        <link rel="stylesheet" href="assets/css/confirm.css">
     </head>
-    <body>
+    <body class="confirm-page">
 
     <?php
     session_start();
@@ -13,11 +17,16 @@
     const HTTP_OK = 200; //レスポンスコード200 = アクセス許可
     const TABLE_ROW_COUNT = 6; //時間割表の行数
     const TABLE_LINE_COUNT = 7; //時間割表の列数
-    const DAY_NAME = array('月','火','水','木','金','土'); //曜日の配列
-    const JSON_DAY_NAME = array('Mon','Tue','Wed','Thu','Fri','Sat'); //jsonファイルの曜日要素の配列
     const PERIOD_COUNT = 5; //1日あたりの限数
-    const QUOTER_KEY = array('1Q' => 'Quarter1', '2Q' => 'Quarter2', '3Q' => 'Quarter3', '4Q' => 'Quarter4'); //学期名とjsonファイルのキーの対応
-    const GRADE_JSON_FILE = array('B3' => 'B3.json', 'B4' => 'B4.json', 'M1' => 'M1.json', 'M2' => 'M2.json'); //学年とjsonファイル名の対応
+    $dayNames = array('月','火','水','木','金','土'); //曜日の配列
+    $jsonDayNames = array('Mon','Tue','Wed','Thu','Fri','Sat'); //jsonファイルの曜日要素の配列
+    $quarterKeys = array('1Q' => 'Quarter1', '2Q' => 'Quarter2', '3Q' => 'Quarter3', '4Q' => 'Quarter4'); //学期名とjsonファイルのキーの対応
+    $gradeJsonFiles = array('B3' => 'B3.json', 'B4' => 'B4.json', 'M1' => 'M1.json', 'M2' => 'M2.json'); //学年とjsonファイル名の対応
+
+    // PHP 5.4でもJSON解析エラーの内容を表示できるようにする。
+    function resistJsonErrorMessage(){
+        return function_exists('json_last_error_msg') ? json_last_error_msg() : (string)json_last_error();
+    }
 
     if($code == HTTP_OK){
 
@@ -30,26 +39,37 @@
 
             //classAllQuarters(JSON文字列、キーは1Q~4Q)を全学期分のクラスデータ(キーはQuarter1~4)に変換
             //resist_new_table.php / resist_logined_table.phpのJSで学期切り替え時に退避された4学期分のデータがここに入っている
-            $allQuartersRaw = json_decode($_POST['classAllQuarters'] ?? '', true);
+            $classAllQuartersJson = isset($_POST['classAllQuarters']) ? $_POST['classAllQuarters'] : '';
+            $allQuartersRaw = json_decode($classAllQuartersJson, true);
+            $allQuartersRaw = is_array($allQuartersRaw) ? $allQuartersRaw : array();
             $classDataAllQuarters = array();
-            foreach(QUOTER_KEY as $label => $qKey){
+            foreach($quarterKeys as $label => $qKey){
                 $classDataAllQuarters[$qKey] = array();
-                foreach(JSON_DAY_NAME as $day){
+                foreach($jsonDayNames as $day){
                     $classDataAllQuarters[$qKey][$day] = array();
                     for($p = 1 ; $p <= PERIOD_COUNT ; $p++){
-                        $value = $allQuartersRaw[$label][$day][$p] ?? ''; //未入力(存在しないキー)は空文字にする
+                        $value = isset($allQuartersRaw[$label][$day][$p]) ? $allQuartersRaw[$label][$day][$p] : ''; //未入力(存在しないキー)は空文字にする
                         $classDataAllQuarters[$qKey][$day][(string)$p] = trim($value);
                     }
                 }
             }
+
+            // 入力内容を保持したまま戻れるよう、処理モードから編集画面を決める。
+            $returnPage = $mode === 'logined' ? 'resist_logined_table.php' : 'resist_new_table.php';
+            $postedGrade = isset($_POST['grade']) ? trim($_POST['grade']) : '';
+            $postedQuarter = isset($_POST['quarter']) ? $_POST['quarter'] : '1Q';
+            $postedEmail = isset($_POST['email']) ? trim($_POST['email']) : '';
+            $postedName = isset($_POST['name']) ? trim($_POST['name']) : '';
+            $postedPassword = isset($_POST['password']) ? trim($_POST['password']) : '';
 
             if(isset($_POST['final']) && $_POST['final'] == '1'){
                 //「登録」が押されたのでjsonファイルへ書き込む
                 $writeError = '';
 
                 if($mode == 'new'){
-                    $grade = trim($_POST['grade'] ?? '');
-                    $jsonFile = __DIR__ . '/json/' . (GRADE_JSON_FILE[$grade] ?? 'B3.json');
+                    $grade = isset($_POST['grade']) ? trim($_POST['grade']) : '';
+                    $jsonFileName = isset($gradeJsonFiles[$grade]) ? $gradeJsonFiles[$grade] : 'B3.json';
+                    $jsonFile = __DIR__ . '/json/' . $jsonFileName;
                     $json = file_get_contents($jsonFile);
 
                     if($json === false){
@@ -60,16 +80,16 @@
                         $data = json_decode($json, true);
 
                         if($data === null){
-                            $writeError = 'jsonファイルの解析に失敗しました: ' . $jsonFile . '(json_last_error: ' . json_last_error_msg() . ')';
+                            $writeError = 'jsonファイルの解析に失敗しました: ' . $jsonFile . '(json_last_error: ' . resistJsonErrorMessage() . ')';
                         }
 
                         else{
                             //4学期分をまとめて新規レコードとして追加
                             $data[] = array(
                                 'grade' => $grade,
-                                'name' => trim($_POST['name'] ?? ''),
-                                'email' => trim($_POST['email'] ?? ''),
-                                'password' => trim($_POST['password'] ?? ''),
+                                'name' => isset($_POST['name']) ? trim($_POST['name']) : '',
+                                'email' => isset($_POST['email']) ? trim($_POST['email']) : '',
+                                'password' => isset($_POST['password']) ? trim($_POST['password']) : '',
                                 'class' => $classDataAllQuarters
                             );
 
@@ -92,15 +112,15 @@
                         $data = json_decode($json, true);
 
                         if($data === null){
-                            $writeError = 'jsonファイルの解析に失敗しました: ' . $jsonFile . '(json_last_error: ' . json_last_error_msg() . ')';
+                            $writeError = 'jsonファイルの解析に失敗しました: ' . $jsonFile . '(json_last_error: ' . resistJsonErrorMessage() . ')';
                         }
 
                         else{
                             $studentIndex = $_SESSION['student_index'];
 
-                            $data[$studentIndex]['email'] = trim($_POST['email'] ?? '');
-                            $data[$studentIndex]['name'] = trim($_POST['name'] ?? '');
-                            $data[$studentIndex]['password'] = trim($_POST['password'] ?? '');
+                            $data[$studentIndex]['email'] = isset($_POST['email']) ? trim($_POST['email']) : '';
+                            $data[$studentIndex]['name'] = isset($_POST['name']) ? trim($_POST['name']) : '';
+                            $data[$studentIndex]['password'] = isset($_POST['password']) ? trim($_POST['password']) : '';
                             $data[$studentIndex]['class'] = $classDataAllQuarters; //4学期分をまるごと上書き更新
 
                             if(file_put_contents($jsonFile, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) === false){
@@ -112,7 +132,15 @@
 
                 if($writeError !== ''){
                     echo 'エラー: ' . htmlspecialchars($writeError, ENT_QUOTES, 'UTF-8') . '<br>';
-                    echo '<button type="button" onclick="history.back()">戻る</button>';
+                    echo '<form method="post" action="'.htmlspecialchars($returnPage, ENT_QUOTES, 'UTF-8').'">';
+                    echo '<input type="hidden" name="grade" value="'.htmlspecialchars($postedGrade, ENT_QUOTES, 'UTF-8').'">';
+                    echo '<input type="hidden" name="quarter" value="'.htmlspecialchars($postedQuarter, ENT_QUOTES, 'UTF-8').'">';
+                    echo '<input type="hidden" name="email" value="'.htmlspecialchars($postedEmail, ENT_QUOTES, 'UTF-8').'">';
+                    echo '<input type="hidden" name="name" value="'.htmlspecialchars($postedName, ENT_QUOTES, 'UTF-8').'">';
+                    echo '<input type="hidden" name="password" value="'.htmlspecialchars($postedPassword, ENT_QUOTES, 'UTF-8').'">';
+                    echo '<input type="hidden" name="classAllQuarters" value="'.htmlspecialchars($classAllQuartersJson, ENT_QUOTES, 'UTF-8').'">';
+                    echo '<button type="submit">修正へ戻る</button>';
+                    echo '</form>';
                 }
 
                 else{
@@ -128,26 +156,27 @@
                 echo '登録内容の確認(全学期分を一括登録します)<br>';
                 echo '<form method="post" action="resist_check.php">';
                 echo '<input type="hidden" name="mode" value="'.htmlspecialchars($mode, ENT_QUOTES, 'UTF-8').'">';
-                echo '<input type="hidden" name="grade" value="'.htmlspecialchars(trim($_POST['grade'] ?? ''), ENT_QUOTES, 'UTF-8').'">';
-                echo '<input type="hidden" name="classAllQuarters" value="'.htmlspecialchars($_POST['classAllQuarters'] ?? '', ENT_QUOTES, 'UTF-8').'">';
+                echo '<input type="hidden" name="grade" value="'.htmlspecialchars($postedGrade, ENT_QUOTES, 'UTF-8').'">';
+                echo '<input type="hidden" name="quarter" value="'.htmlspecialchars($postedQuarter, ENT_QUOTES, 'UTF-8').'">';
+                echo '<input type="hidden" name="classAllQuarters" value="'.htmlspecialchars($classAllQuartersJson, ENT_QUOTES, 'UTF-8').'">';
                 echo '<input type="hidden" name="final" value="1">';
 
-                echo '学年: ' . htmlspecialchars(trim($_POST['grade'] ?? ''), ENT_QUOTES, 'UTF-8') . '<br>';
+                echo '学年: ' . htmlspecialchars($postedGrade, ENT_QUOTES, 'UTF-8') . '<br>';
 
-                echo 'メールアドレス<input type="text" name="email" value="'.htmlspecialchars(trim($_POST['email'] ?? ''), ENT_QUOTES, 'UTF-8').'" readonly><br>';
-                echo '氏名<input type="text" name="name" value="'.htmlspecialchars(trim($_POST['name'] ?? ''), ENT_QUOTES, 'UTF-8').'" readonly><br>';
-                echo 'パスワード<input type="password" name="password" value="'.htmlspecialchars(trim($_POST['password'] ?? ''), ENT_QUOTES, 'UTF-8').'" readonly><br>';
+                echo 'メールアドレス<input type="text" name="email" value="'.htmlspecialchars($postedEmail, ENT_QUOTES, 'UTF-8').'" readonly><br>';
+                echo '氏名<input type="text" name="name" value="'.htmlspecialchars($postedName, ENT_QUOTES, 'UTF-8').'" readonly><br>';
+                echo 'パスワード<input type="password" name="password" value="'.htmlspecialchars($postedPassword, ENT_QUOTES, 'UTF-8').'" readonly><br>';
 
                 //確認する学期をラジオボタンで切り替えられるようにする(送信内容には影響しない、表示切替用)
                 echo '確認する学期<br>';
-                foreach(QUOTER_KEY as $label => $qKey){
+                foreach($quarterKeys as $label => $qKey){
                     $checkedAttr = ($label == '1Q') ? ' checked' : '';
                     echo '<label><input type="radio" name="confirmQuarterView" value="'.htmlspecialchars($label, ENT_QUOTES, 'UTF-8').'" onchange="showConfirmQuarter(this.value)"'.$checkedAttr.'>'.htmlspecialchars($label, ENT_QUOTES, 'UTF-8').'</label>';
                 }
                 echo '<br>';
 
                 //学期ごとに時間割表を用意し(全て読み取り専用)、ラジオボタンで選ばれた学期のみ表示する。「入力欄が固定された時間割表」の確認画面部分
-                foreach(QUOTER_KEY as $label => $qKey){
+                foreach($quarterKeys as $label => $qKey){
                     $displayStyle = ($label == '1Q') ? 'block' : 'none';
                     echo '<div id="confirmTable_' . htmlspecialchars($label, ENT_QUOTES, 'UTF-8') . '" style="display:' . $displayStyle . ';">';
                     echo '<table border="1" width="800" cellpadding="10">';
@@ -162,7 +191,7 @@
                                     echo '<th></th>';
                                     continue;
                                 }
-                                echo '<th>' . DAY_NAME[$j-1] . '</th>';
+                                echo '<th>' . $dayNames[$j-1] . '</th>';
                             }
                         }
 
@@ -172,7 +201,7 @@
                                     echo '<td>' . $i . '</td>';
                                     continue;
                                 }
-                                $day = JSON_DAY_NAME[$j-1];
+                                $day = $jsonDayNames[$j-1];
                                 $val = $classDataAllQuarters[$qKey][$day][(string)$i];
                                 echo '<td><input type="text" value="'.htmlspecialchars($val, ENT_QUOTES, 'UTF-8').'" readonly></td>';
                             }
@@ -187,7 +216,15 @@
 
                 echo '<button type="submit">登録</button>';
                 echo '</form>';
-                echo '<button type="button" onclick="history.back()">キャンセル</button>';
+                echo '<form method="post" action="'.htmlspecialchars($returnPage, ENT_QUOTES, 'UTF-8').'">';
+                echo '<input type="hidden" name="grade" value="'.htmlspecialchars($postedGrade, ENT_QUOTES, 'UTF-8').'">';
+                echo '<input type="hidden" name="quarter" value="'.htmlspecialchars($postedQuarter, ENT_QUOTES, 'UTF-8').'">';
+                echo '<input type="hidden" name="email" value="'.htmlspecialchars($postedEmail, ENT_QUOTES, 'UTF-8').'">';
+                echo '<input type="hidden" name="name" value="'.htmlspecialchars($postedName, ENT_QUOTES, 'UTF-8').'">';
+                echo '<input type="hidden" name="password" value="'.htmlspecialchars($postedPassword, ENT_QUOTES, 'UTF-8').'">';
+                echo '<input type="hidden" name="classAllQuarters" value="'.htmlspecialchars($classAllQuartersJson, ENT_QUOTES, 'UTF-8').'">';
+                echo '<button type="submit">修正へ戻る</button>';
+                echo '</form>';
 
                 //ラジオボタンで選択された学期のdivだけを表示し、他は隠す
                 echo '<script>';

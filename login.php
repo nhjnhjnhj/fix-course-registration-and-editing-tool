@@ -1,55 +1,50 @@
+<?php
+session_start();
+
+// 認証処理から返されたエラーを画面内へ一度だけ表示する。
+$loginError = '';
+if(isset($_SESSION['NotFound_Student']) && $_SESSION['NotFound_Student'] == true){
+    $loginError = 'ユーザーが存在しません。';
+    unset($_SESSION['NotFound_Student']);
+}
+else if(isset($_SESSION['incollect']) && $_SESSION['incollect'] == true){
+    $loginError = 'メールアドレスまたはパスワードが違います。';
+    unset($_SESSION['incollect']);
+}
+else if(isset($_SESSION['empty']) && $_SESSION['empty'] == true){
+    $loginError = 'メールアドレスまたはパスワードが未入力です。';
+    unset($_SESSION['empty']);
+}
+?>
 <!DOCTYPE html>
-<html>
-    <head>
-        <meta charset="UTF-8" />
-        <title>ログイン・新規登録ページ</title>
-    </head>
-    <body>
-    
-    <?php
-    session_start();
-    $code = http_response_code(); //HTTPレスポンスコードを取得(404 Not Foundなど)
-    const HTTP_OK = 200; //レスポンスコード200 = アクセス許可
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ログインページ</title>
+    <!-- 共通テーマとログイン画面専用デザイン -->
+    <link rel="stylesheet" href="assets/css/common.css">
+    <link rel="stylesheet" href="assets/css/login.css">
+</head>
+<body class="login-page">
+    <h1 class="login-title">受講科目登録・閲覧システム</h1>
+    <p class="login-description">登録済みの時間割を編集するため、ログインしてください。</p>
 
-    if($code == HTTP_OK){
-        
-        //Back_login_Student.phpでログインに失敗した場合、セッション変数NotFound_Studentがtrueに設定されるので、アラートを表示する。
-        if(isset($_SESSION['NotFound_Student']) && $_SESSION['NotFound_Student'] == true){
+    <?php if($loginError !== ''): ?>
+        <p class="login-error"><?php echo htmlspecialchars($loginError, ENT_QUOTES, 'UTF-8'); ?></p>
+    <?php endif; ?>
 
-            echo '<script>alert("ユーザーが存在しません");</script>';
-            unset($_SESSION['NotFound_Student']); //セッション破棄
-        }
+    <!-- 既存の学生認証処理へメールアドレスとパスワードを送信する -->
+    <form method="post" action="Back_login_Student.php">
+        <label for="login-email">メールアドレス</label>
+        <input id="login-email" type="text" name="email">
 
-        //Back_login_Student.phpでメールアドレスまたはパスワードが異なる場合、セッション変数incollectがtrueに設定されるので、アラートを表示する。
-        if(isset($_SESSION['incollect']) && $_SESSION['incollect'] == true){
+        <label for="login-password">パスワード</label>
+        <input id="login-password" type="password" name="password">
 
-            echo '<script>alert("メールアドレスまたはパスワードが違います");</script>';
-            unset($_SESSION['incollect']); //セッション破棄
-        }
+        <button type="submit">ログイン</button>
+    </form>
 
-        if(isset($_SESSION['empty']) && $_SESSION['empty'] == true){
-
-            echo '<script>alert("メールアドレスまたはパスワードが未入力です");</script>';
-            unset($_SESSION['empty']); //セッション破棄
-        }
-
-
-        //メールアドレス、氏名、パスワードを入力するフォームを作成。ログインの場合は、resist_tableでメアド・パスワード欄を表示しない。
-        echo '<form method="post" action="Back_login_Student.php">';
-        echo 'メールアドレス';
-        echo '<input type = "text" name = "email"><br>';
-        echo 'パスワード';
-        echo '<input type = "password" name = "password"><br>';
-        echo '<button type="submit">ログイン</button><br>';
-        echo '</form>';
-
-        echo '<button onclick="location.href=\'index.php\'">トップページへ戻る</button>'; //トップページへ遷移
-
-    }
-    
-    ?>
-    
-
-
+    <a class="button login-back-button" href="index.php">トップページへ戻る</a>
 </body>
 </html>

@@ -1,0 +1,66 @@
+/* 登録確認・削除確認画面 */
+.confirm-page {
+    width: min(1050px, calc(100% - 32px));
+    margin: 0 auto;
+    padding: 28px 0;
+    text-align: center;
+}
+
+.confirm-page > form {
+    padding: 22px;
+    border: 1px solid #bad4e9;
+    border-radius: 10px;
+    background: rgba(255,255,255,.86);
+    box-shadow: 0 8px 24px rgba(9,65,119,.13);
+}
+
+.confirm-page table {
+    width: 100% !important;
+    margin: 15px 0;
+    border: 3px solid var(--ice-navy);
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+.confirm-page th,
+.confirm-page td { height: 54px; padding: 7px !important; border: 1px solid var(--ice-line); }
+.confirm-page th,
+.confirm-page td:first-child { color: #fff; font-weight: 700; background: linear-gradient(135deg, var(--ice-blue), #023c75); }
+.confirm-page td input { width: 100%; }
+.confirm-page button { margin: 10px 5px 0; }
+
+.delete-page {
+    display: grid;
+    place-content: center;
+    min-height: calc(100vh - 10px);
+    padding: 24px;
+    text-align: center;
+    font-size: 18px;
+}
+
+.delete-page::before {
+    content: "登録情報の削除";
+    margin-bottom: 18px;
+    color: var(--ice-danger);
+    font-size: 30px;
+    font-weight: 800;
+}
+
+.delete-actions {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    margin-top: 14px;
+}
+
+.delete-actions form { margin: 0; }
+.delete-actions button,
+.delete-actions .button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 110px;
+    margin: 0;
+    text-decoration: none;
+}

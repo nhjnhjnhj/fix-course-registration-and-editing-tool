@@ -10,8 +10,10 @@
     <head>
         <meta charset="UTF-8" />
         <title>削除確認ページ</title>
+        <link rel="stylesheet" href="assets/css/common.css">
+        <link rel="stylesheet" href="assets/css/confirm.css">
     </head>
-    <body>
+    <body class="delete-page">
     <script>
         //ブラウザキャッシュ(bfcache)から復元された場合は強制的に再読み込みし、PHPを再実行させる
         window.addEventListener('pageshow', function(event){
@@ -24,9 +26,14 @@
     <?php
     $code = http_response_code(); //HTTPレスポンスコードを取得(404 Not Foundなど)
     const HTTP_OK = 200; //レスポンスコード200 = アクセス許可
-    const JSON_DAY_NAME = array('Mon','Tue','Wed','Thu','Fri','Sat'); //jsonファイルの曜日要素の配列
-    const QUOTER_KEY = array('Quarter1', 'Quarter2', 'Quarter3', 'Quarter4'); //jsonファイルの学期キー
     const PERIOD_COUNT = 5; //1日あたりの限数
+    $jsonDayNames = array('Mon','Tue','Wed','Thu','Fri','Sat'); //jsonファイルの曜日要素の配列
+    $quarterKeys = array('Quarter1', 'Quarter2', 'Quarter3', 'Quarter4'); //jsonファイルの学期キー
+
+    // PHP 5.4でもJSON解析エラーの内容を表示できるようにする。
+    function deleteJsonErrorMessage(){
+        return function_exists('json_last_error_msg') ? json_last_error_msg() : (string)json_last_error();
+    }
 
     if($code == HTTP_OK){
 
@@ -51,7 +58,7 @@
                     $data = json_decode($json, true);
 
                     if($data === null){
-                        $writeError = 'jsonファイルの解析に失敗しました: ' . $jsonFile . '(json_last_error: ' . json_last_error_msg() . ')';
+                        $writeError = 'jsonファイルの解析に失敗しました: ' . $jsonFile . '(json_last_error: ' . deleteJsonErrorMessage() . ')';
                     }
 
                     else{
@@ -62,9 +69,9 @@
                             //Profはアカウント自体を削除するとBack_login_Prof.phpでログインできなくなるため、
                             //grade/name/email/passwordは維持し、classの中身(各コマ)だけ空文字にリセットする(delete_all.phpと同じロジック)
                             $emptyClass = array();
-                            foreach(QUOTER_KEY as $qKey){
+                            foreach($quarterKeys as $qKey){
                                 $emptyClass[$qKey] = array();
-                                foreach(JSON_DAY_NAME as $day){
+                                foreach($jsonDayNames as $day){
                                     $emptyClass[$qKey][$day] = array();
                                     for($p = 1 ; $p <= PERIOD_COUNT ; $p++){
                                         $emptyClass[$qKey][$day][(string)$p] = '';
@@ -86,7 +93,7 @@
 
                 if($writeError !== ''){
                     echo 'エラー: ' . htmlspecialchars($writeError, ENT_QUOTES, 'UTF-8') . '<br>';
-                    echo '<button type="button" onclick="history.back()">戻る</button>';
+                    echo '<a class="button" href="resist_logined_table.php?reset=1">編集画面へ戻る</a>';
                 }
 
                 else if($isProf){
@@ -113,11 +120,13 @@
             else{
                 //確認画面
                 echo '削除しますか？この操作は取り消せません。<br>';
+                echo '<div class="delete-actions">';
                 echo '<form method="post" action="delete_check.php">';
                 echo '<input type="hidden" name="confirmDelete" value="1">';
                 echo '<button type="submit">はい</button>';
                 echo '</form>';
-                echo '<button type="button" onclick="history.back()">いいえ</button>';
+                echo '<a class="button" href="resist_logined_table.php?reset=1">いいえ</a>';
+                echo '</div>';
             }
         }
 

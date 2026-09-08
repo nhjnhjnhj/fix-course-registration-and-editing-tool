@@ -1,0 +1,78 @@
+/* トップページ固有の配置 */
+.page { width: min(1500px, 100%); min-height: calc(100vh - 10px); margin: 0 auto; padding: 14px 28px 16px; }
+.title { margin: 0; text-align: center; font-size: clamp(25px, 2.5vw, 37px); letter-spacing: .08em; }
+.title-rule { display: flex; align-items: center; gap: 12px; max-width: 1000px; margin: 6px auto 12px; color: #1480c5; }
+.title-rule::before, .title-rule::after { height: 3px; content: ""; flex: 1; background: linear-gradient(90deg, transparent, #0875b9, transparent); }
+.notice { width: fit-content; margin: 0 auto 8px; padding: 6px 16px; color: #176329; background: #e8f8ec; border: 1px solid #8ac697; border-radius: 5px; }
+.notice-error { color: #8f1d17; background: #ffefee; border-color: #df8c87; }
+.filters { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px 18px; margin-bottom: 10px; font-size: 16px; }
+.filters label { margin: 0; white-space: nowrap; }
+.filters input { width: 18px; height: 18px; vertical-align: -3px; }
+.student-filter { display: inline-flex; align-items: center; gap: 6px; }
+.summary { display: flex; align-items: center; justify-content: space-between; min-height: 78px; }
+.term { display: flex; align-items: center; gap: 13px; font-size: clamp(18px, 1.8vw, 24px); font-weight: 700; }
+.calendar { font-size: 36px; }
+.mascot { width: 76px; height: 86px; margin-left: 2px; object-fit: contain; object-position: center 32%; }
+.edit-button, .admin-button { display: inline-flex; align-items: center; gap: 8px; padding: 8px 15px; color: #fff; font-weight: 700; text-decoration: none; border: 2px solid #063469; border-radius: 6px; background: linear-gradient(#0b639e, #06366d); box-shadow: 0 3px 6px rgba(0,35,78,.25); }
+.edit-menu { position: relative; }
+.edit-menu summary { list-style: none; cursor: pointer; }
+.edit-menu summary::-webkit-details-marker { display: none; }
+.edit-options {
+    position: absolute;
+    z-index: 10;
+    top: calc(100% + 8px);
+    right: 0;
+    display: grid;
+    gap: 7px;
+    width: 100%;
+    min-width: 190px;
+    padding: 10px;
+    border: 1px solid #8eb9dc;
+    border-radius: 7px;
+    background: rgba(255, 255, 255, .97);
+    box-shadow: 0 6px 16px rgba(0, 35, 78, .22);
+}
+.edit-options a {
+    padding: 8px 12px;
+    color: var(--ice-navy);
+    font-weight: 700;
+    text-align: center;
+    text-decoration: none;
+    border: 1px solid var(--ice-line);
+    border-radius: 5px;
+    background: #edf8ff;
+}
+.edit-options a:hover { background: #d9effc; }
+.quarter-tabs { display: flex; align-items: end; }
+.quarter-tab { min-width: 90px; padding: 7px 19px; margin: 0; color: #536883; font-weight: 700; text-align: center; border: 1px solid #b7c9dc; border-bottom: 0; border-radius: 7px 7px 0 0; background: rgba(255,255,255,.78); cursor: pointer; }
+.quarter-tab input { position: absolute; opacity: 0; pointer-events: none; }
+.quarter-tab.active { color: #fff; background: var(--ice-navy); }
+.schedule-wrap { overflow-x: auto; border: 3px solid var(--ice-navy); border-radius: 7px; box-shadow: 0 0 0 5px rgba(130,202,241,.28), 0 6px 16px rgba(9,65,119,.13); }
+.schedule { width: 100%; min-width: 850px; border-collapse: collapse; table-layout: fixed; }
+.schedule th, .schedule td { border: 1px solid var(--ice-line); }
+.schedule thead th { height: clamp(48px, 6.5vh, 60px); color: #fff; font-size: 23px; background: linear-gradient(135deg, var(--ice-blue), #023c75); text-decoration: underline; text-underline-offset: 7px; }
+.schedule .corner, .schedule .period { width: 105px; color: #fff; text-align: center; background: linear-gradient(135deg, var(--ice-blue), #023c75); }
+.schedule .corner { font-size: 31px; }
+.schedule .period { font-size: 27px; text-decoration: underline; text-underline-offset: 8px; }
+.schedule td { height: clamp(48px, 6.8vh, 66px); padding: 9px; background: rgba(255,255,255,.72); vertical-align: top; }
+.schedule td.highlighted { background: #fff6a8; }
+.course-tag { display: inline-block; margin: 2px; padding: 2px 9px 3px; color: #fff; font-size: 18px; font-weight: 800; line-height: 1; border-radius: 6px; background: #52677d; }
+.course-tag.grade-b3 { background: #188038; }
+.course-tag.grade-b4 { background: #0969b5; }
+.course-tag.grade-m1 { background: #bd5700; }
+.course-tag.grade-m2 { background: #7048b8; }
+.course-tag.grade-prof { background: #b3261e; }
+.course-detail { margin-bottom: 4px; font-size: 13px; }
+.footer-actions, .admin-login { display: flex; justify-content: flex-end; align-items: center; gap: 12px; }
+.footer-actions { margin-top: 14px; }
+.login-field { width: 165px; }
+.login-status { font-weight: 700; }
+
+@media (max-width: 760px) {
+    .page { padding: 18px 14px 22px; }
+    .filters { justify-content: flex-start; }
+    .summary { gap: 12px; }
+    .term { gap: 10px; }
+    .mascot { width: 68px; height: 84px; }
+    .quarter-tab { min-width: 70px; padding-inline: 14px; }
+}
