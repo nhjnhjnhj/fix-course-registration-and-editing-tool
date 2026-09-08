@@ -2,9 +2,16 @@
     session_start();
     require_once __DIR__ . '/student_data_lock.php';
 
+    // 未ログインでの直接アクセスや、ログアウト後の「戻る」操作を拒否する。
+    if(!isset($_SESSION['Student_login_Success']) || $_SESSION['Student_login_Success'] !== true){
+        header('Location: login.php');
+        exit();
+    }
+
     //ブラウザの「戻る」操作でキャッシュ(bfcache)から古いログイン状態の画面が復元されるのを防ぐ(HTML出力より前に呼ぶ必要がある)
-    header('Cache-Control: no-store, no-cache, must-revalidate');
+    header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
     header('Pragma: no-cache');
+    header('Expires: Thu, 01 Jan 1970 00:00:00 GMT');
 ?>
 <!DOCTYPE html>
 <html>
@@ -46,7 +53,7 @@
         && $_SESSION['student_json_file'] === 'Prof.json';
 
     // JavaScriptを使わずに配置できる授業外予定
-    $scheduleEventTypes = array('バイト', 'SA', 'TA');
+    $scheduleEventTypes = array('バイト', 'SA', 'ISA');
     $selectedQuarter = isset($_POST['quarter']) && in_array($_POST['quarter'], $quarterNames, true) ? $_POST['quarter'] : '1Q';
     $returnedQuarterData = json_decode(isset($_POST['classAllQuarters']) ? $_POST['classAllQuarters'] : '', true);
     $returnedQuarterData = is_array($returnedQuarterData) ? $returnedQuarterData : array();

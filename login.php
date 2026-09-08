@@ -3,7 +3,11 @@ session_start();
 
 // 認証処理から返されたエラーを画面内へ一度だけ表示する。
 $loginError = '';
-if(isset($_SESSION['NotFound_Student']) && $_SESSION['NotFound_Student'] == true){
+if(isset($_SESSION['login_system_error']) && $_SESSION['login_system_error'] == true){
+    $loginError = '学生データを確認できませんでした。時間を置いて再度お試しください。';
+    unset($_SESSION['login_system_error']);
+}
+else if(isset($_SESSION['NotFound_Student']) && $_SESSION['NotFound_Student'] == true){
     $loginError = 'ユーザーが存在しません。';
     unset($_SESSION['NotFound_Student']);
 }

@@ -1,3 +1,19 @@
+<?php
+session_start();
+require_once __DIR__ . '/student_data_lock.php';
+
+// ログイン済み利用者向けの確認・保存処理を、未ログイン状態では実行させない。
+if(isset($_POST['mode'])
+    && $_POST['mode'] === 'logined'
+    && (!isset($_SESSION['Student_login_Success']) || $_SESSION['Student_login_Success'] !== true)){
+    header('Location: login.php');
+    exit();
+}
+
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+header('Expires: Thu, 01 Jan 1970 00:00:00 GMT');
+?>
 <!DOCTYPE html>
 <html>
     <head>
@@ -11,8 +27,6 @@
     <body class="confirm-page">
 
     <?php
-    session_start();
-    require_once __DIR__ . '/student_data_lock.php';
     $code = http_response_code(); //HTTPレスポンスコードを取得(404 Not Foundなど)
 
     const HTTP_OK = 200; //レスポンスコード200 = アクセス許可

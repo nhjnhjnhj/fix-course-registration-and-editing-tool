@@ -3,8 +3,9 @@
     require_once __DIR__ . '/student_data_lock.php';
 
     //ブラウザの「戻る」操作でキャッシュ(bfcache)から古い画面が復元されるのを防ぐ(HTML出力より前に呼ぶ必要がある)
-    header('Cache-Control: no-store, no-cache, must-revalidate');
+    header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
     header('Pragma: no-cache');
+    header('Expires: Thu, 01 Jan 1970 00:00:00 GMT');
 ?>
 <!DOCTYPE html>
 <html>

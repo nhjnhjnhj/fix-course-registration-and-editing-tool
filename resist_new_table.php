@@ -1,7 +1,4 @@
 <?php
-    session_start();
-    require_once __DIR__ . '/student_data_lock.php';
-
     //ブラウザの「戻る」操作でキャッシュ(bfcache)から古いログイン状態の画面が復元されるのを防ぐ(HTML出力より前に呼ぶ必要がある)
     header('Cache-Control: no-store, no-cache, must-revalidate');
     header('Pragma: no-cache');
@@ -39,7 +36,7 @@
     $jsonDayNames = array('Mon','Tue','Wed','Thu','Fri','Sat'); //jsonファイルの曜日要素の配列
 
     // JavaScriptを使わずに配置できる授業外予定
-    $scheduleEventTypes = array('バイト', 'SA', 'TA');
+    $scheduleEventTypes = array('バイト', 'SA', 'ISA');
     $selectedGrade = isset($_POST['grade']) && in_array($_POST['grade'], $gradeNames, true) ? $_POST['grade'] : 'B3';
     $selectedQuarter = isset($_POST['quarter']) && in_array($_POST['quarter'], $quarterNames, true) ? $_POST['quarter'] : '1Q';
     $returnedQuarterData = json_decode(isset($_POST['classAllQuarters']) ? $_POST['classAllQuarters'] : '', true);
@@ -73,24 +70,6 @@
 
     if($code == HTTP_OK){
 
-        if(isset($_SESSION['Student_login_Success']) && $_SESSION['Student_login_Success'] == true){
-            //Back_login_Studentで定義したログインした学生の学年を参照
-            $jsonFile = __DIR__ . '/json/' . $_SESSION['student_json_file'];
-            $dataLockHandle = studentDataAcquireLock(__DIR__, false, false);
-            if($dataLockHandle === false){
-                echo '学生データの読み込みロックを取得できませんでした。';
-                exit();
-            }
-            $json = $dataLockHandle !== false ? file_get_contents($jsonFile) : false;
-            studentDataReleaseLock($dataLockHandle);
-            $data_Student = json_decode($json, true);
-
-            //Back_login_Studentで定義したログインした学生のファイルindexを参照
-            $studentIndex = $_SESSION['student_index'];
-            $studentData = $data_Student[$studentIndex];
-        }
-
-
         echo '<form id="resistForm" method="post" action="resist_check.php">';
         echo '<input type="hidden" name="mode" value="new">';
 
@@ -111,22 +90,22 @@
         echo '<br>';
         echo '<input type="hidden" name="classAllQuarters" id="classAllQuarters">'; //4学期分の時間割データ(JSON)を送信時にJSで詰め込むためのhiddenフィールド
 
-        //予定配置後はPOST値を優先し、それ以外はログイン済みの情報を初期値にする。
+        //予定配置後や確認画面から戻った場合はPOST値を保持し、初回表示は空欄にする。
         $emailValue = isset($_POST['email'])
             ? $_POST['email']
-            : ((isset($_SESSION['Student_login_Success']) && $_SESSION['Student_login_Success'] == true) ? $studentData['email'] : '');
+            : '';
         echo 'メールアドレス';
         echo '<input type="text" name="email" value="'.htmlspecialchars($emailValue, ENT_QUOTES, 'UTF-8').'"><br>';
 
         $nameValue = isset($_POST['name'])
             ? $_POST['name']
-            : ((isset($_SESSION['Student_login_Success']) && $_SESSION['Student_login_Success'] == true) ? $studentData['name'] : '');
+            : '';
         echo '氏名';
         echo '<input type="text" name="name" value="'.htmlspecialchars($nameValue, ENT_QUOTES, 'UTF-8').'"><br>';
 
         $passValue = isset($_POST['password'])
             ? $_POST['password']
-            : ((isset($_SESSION['Student_login_Success']) && $_SESSION['Student_login_Success'] == true) ? $studentData['password'] : '');
+            : '';
         echo 'パスワード';
         echo '<input type="password" name="password" value="'.htmlspecialchars($passValue, ENT_QUOTES, 'UTF-8').'"><br>';
 
@@ -194,11 +173,6 @@
                         $classValue = $returnedQuarterData[$selectedQuarter][$jsonDayNames[$j-1]][$i];
                         echo '<td><input type="text" id="cell_' . $jsonDayNames[$j-1] . '_' . $i . '" name="class[' . $jsonDayNames[$j-1] . '][' . $i . ']" value="'.htmlspecialchars($classValue, ENT_QUOTES, 'UTF-8').'"></td>';
                     }
-                    else if(isset($_SESSION['Student_login_Success']) && $_SESSION['Student_login_Success'] == true){
-                        $classValue = $studentData['class']['Quarter1'][$jsonDayNames[$j-1]][$i];
-                        echo '<td><input type="text" id="cell_' . $jsonDayNames[$j-1] . '_' . $i . '" name="class[' . $jsonDayNames[$j-1] . '][' . $i . ']" value="'.htmlspecialchars($classValue, ENT_QUOTES, 'UTF-8').'"></td>';
-                    }
-
                     else{
                         echo '<td><input type="text" id="cell_' . $jsonDayNames[$j-1] . '_' . $i . '" name="class[' . $jsonDayNames[$j-1] . '][' . $i . ']"></td>';
                     }
@@ -211,9 +185,6 @@
         echo '</table>';
         
         echo '<button type="submit">登録</button>';//resist_check.phpに入力内容をPOSTして確認画面へ
-        if(isset($_SESSION['Student_login_Success']) && $_SESSION['Student_login_Success'] == true){ //ログイン済みの場合のみ削除ボタンを表示
-            echo '<button type="button" onclick="location.href=\'delete_check.php\'">削除</button>';//リンクあり。ポップアップで処理できそう
-        }
         echo '<a class="button reset-button" href="resist_new_table.php">リセット</a>';
         echo '</form>';
 
@@ -227,17 +198,12 @@
             if(isset($initialQuarterData[$label])){
                 continue;
             }
-            if(isset($_SESSION['Student_login_Success']) && $_SESSION['Student_login_Success'] == true){
-                $initialQuarterData[$label] = $studentData['class'][$qKey]; //ログイン済みなら既存の登録内容を初期値にする
+            // 新規登録ではログイン状態に関係なく、全学期分を空欄で初期化する。
+            $emptyDay = array();
+            foreach($jsonDayNames as $day){
+                $emptyDay[$day] = array('1'=>'', '2'=>'', '3'=>'', '4'=>'', '5'=>'');
             }
-            else{
-                //未ログインは全学期分を空欄で初期化
-                $emptyDay = array();
-                foreach($jsonDayNames as $day){
-                    $emptyDay[$day] = array('1'=>'', '2'=>'', '3'=>'', '4'=>'', '5'=>'');
-                }
-                $initialQuarterData[$label] = $emptyDay;
-            }
+            $initialQuarterData[$label] = $emptyDay;
         }
         if(isset($_POST['class']) && is_array($_POST['class'])){
             $initialQuarterData[$selectedQuarter] = $_POST['class'];
