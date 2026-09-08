@@ -79,37 +79,18 @@
         echo '<br>';
         echo '<input type="hidden" name="classAllQuarters" id="classAllQuarters">'; //4学期分の時間割データ(JSON)を送信時にJSで詰め込むためのhiddenフィールド
 
-        //現状：ログインなら取得したキーを最初から入力。
-        //ログイン済みなら表示しない
+        //ログインの有無にかかわらず常に表示し、編集可能にする。ログイン済みなら既存の値を初期値として入力しておく。
+        $emailValue = (isset($_SESSION['Student_login_Success']) && $_SESSION['Student_login_Success'] == true) ? $studentData['email'] : '';
         echo 'メールアドレス';
-        if(isset($_SESSION['Student_login_Success']) && $_SESSION['Student_login_Success'] == true){ //ログイン済み
-            $emailValue = $studentData['email'];
-            echo '<td><input type = "text" name = "email" value=" '.htmlspecialchars($emailValue, ENT_QUOTES, 'UTF-8'). '"><br></td>';
-        }
-        else{
-            echo '<input type = "text" name = "email"><br>';
-        }
-        
-        //ログインの有無にかかわらず表示。大きな変更はなし。
-        echo '氏名';
-        if(isset($_SESSION['Student_login_Success']) && $_SESSION['Student_login_Success'] == true){ //ログイン済み
-            $nameValue = $studentData['name'];
-            echo '<td><input type = "text" name = "name" value=" '.htmlspecialchars($nameValue, ENT_QUOTES, 'UTF-8'). '"><br></td>';
-        }
-        else{
-            echo '<input type = "text" name = "name"><br>';
-        }
+        echo '<input type = "text" name = "email" value="'.htmlspecialchars($emailValue, ENT_QUOTES, 'UTF-8'). '"><br>';
 
-        //現状：ログインなら取得したキーを最初から入力。
-        //ログイン済みなら表示しない
+        $nameValue = (isset($_SESSION['Student_login_Success']) && $_SESSION['Student_login_Success'] == true) ? $studentData['name'] : '';
+        echo '氏名';
+        echo '<input type = "text" name = "name" value="'.htmlspecialchars($nameValue, ENT_QUOTES, 'UTF-8'). '"><br>';
+
+        $passValue = (isset($_SESSION['Student_login_Success']) && $_SESSION['Student_login_Success'] == true) ? $studentData['password'] : '';
         echo 'パスワード';
-        if(isset($_SESSION['Student_login_Success']) && $_SESSION['Student_login_Success'] == true){ //ログイン済み
-            $passValue = $studentData['password'];
-            echo '<td><input type = "password" name = "password" value=" '.htmlspecialchars($passValue, ENT_QUOTES, 'UTF-8'). '"><br></td>';
-        }
-        else{
-            echo '<input type = "password" name = "password"><br>';
-        }
+        echo '<input type = "password" name = "password" value="'.htmlspecialchars($passValue, ENT_QUOTES, 'UTF-8'). '"><br>';
 
         
         echo '<table border="1" width="800" cellpadding="10">'; //表の枠の太さ、幅、セルの余白を指定

@@ -17,7 +17,7 @@
     const JSON_DAY_NAME = array('Mon','Tue','Wed','Thu','Fri','Sat'); //jsonファイルの曜日要素の配列
     const PERIOD_COUNT = 5; //1日あたりの限数
     const QUOTER_KEY = array('1Q' => 'Quarter1', '2Q' => 'Quarter2', '3Q' => 'Quarter3', '4Q' => 'Quarter4'); //学期名とjsonファイルのキーの対応
-    const GRADE_JSON_FILE = array('B3' => 'B3.json', 'B4' => 'B4.json', 'M1' => 'Master.json', 'M2' => 'Master.json'); //学年とjsonファイル名の対応
+    const GRADE_JSON_FILE = array('B3' => 'B3.json', 'B4' => 'B4.json', 'M1' => 'M1.json', 'M2' => 'M2.json'); //学年とjsonファイル名の対応
 
     if($code == HTTP_OK){
 
@@ -98,7 +98,9 @@
                         else{
                             $studentIndex = $_SESSION['student_index'];
 
+                            $data[$studentIndex]['email'] = trim($_POST['email'] ?? '');
                             $data[$studentIndex]['name'] = trim($_POST['name'] ?? '');
+                            $data[$studentIndex]['password'] = trim($_POST['password'] ?? '');
                             $data[$studentIndex]['class'] = $classDataAllQuarters; //4学期分をまるごと上書き更新
 
                             if(file_put_contents($jsonFile, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) === false){
@@ -132,14 +134,9 @@
 
                 echo '学年: ' . htmlspecialchars(trim($_POST['grade'] ?? ''), ENT_QUOTES, 'UTF-8') . '<br>';
 
-                if($mode == 'new'){
-                    echo 'メールアドレス<input type="text" name="email" value="'.htmlspecialchars(trim($_POST['email'] ?? ''), ENT_QUOTES, 'UTF-8').'" readonly><br>';
-                    echo '氏名<input type="text" name="name" value="'.htmlspecialchars(trim($_POST['name'] ?? ''), ENT_QUOTES, 'UTF-8').'" readonly><br>';
-                    echo 'パスワード<input type="password" name="password" value="'.htmlspecialchars(trim($_POST['password'] ?? ''), ENT_QUOTES, 'UTF-8').'" readonly><br>';
-                }
-                else{
-                    echo '氏名<input type="text" name="name" value="'.htmlspecialchars(trim($_POST['name'] ?? ''), ENT_QUOTES, 'UTF-8').'" readonly><br>';
-                }
+                echo 'メールアドレス<input type="text" name="email" value="'.htmlspecialchars(trim($_POST['email'] ?? ''), ENT_QUOTES, 'UTF-8').'" readonly><br>';
+                echo '氏名<input type="text" name="name" value="'.htmlspecialchars(trim($_POST['name'] ?? ''), ENT_QUOTES, 'UTF-8').'" readonly><br>';
+                echo 'パスワード<input type="password" name="password" value="'.htmlspecialchars(trim($_POST['password'] ?? ''), ENT_QUOTES, 'UTF-8').'" readonly><br>';
 
                 //確認する学期をラジオボタンで切り替えられるようにする(送信内容には影響しない、表示切替用)
                 echo '確認する学期<br>';

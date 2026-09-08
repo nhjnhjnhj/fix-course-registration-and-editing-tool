@@ -85,15 +85,18 @@
         echo '<input type="hidden" name="classAllQuarters" id="classAllQuarters">'; //4学期分の時間割データ(JSON)を送信時にJSで詰め込むためのhiddenフィールド
         
         
-        //ログイン時は名前のみ表示。大きな変更はなし。
+        //ログイン済みの登録内容(メールアドレス・氏名・パスワード)を初期値として編集可能にする(resist_new_table.phpと同様)
+        $emailValue = (isset($_SESSION['Student_login_Success']) && $_SESSION['Student_login_Success'] == true) ? $studentData['email'] : '';
+        echo 'メールアドレス';
+        echo '<input type = "text" name = "email" value="'.htmlspecialchars($emailValue, ENT_QUOTES, 'UTF-8'). '"><br>';
+
+        $nameValue = (isset($_SESSION['Student_login_Success']) && $_SESSION['Student_login_Success'] == true) ? $studentData['name'] : '';
         echo '氏名';
-        if(isset($_SESSION['Student_login_Success']) && $_SESSION['Student_login_Success'] == true){ //ログイン済み
-            $nameValue = $studentData['name'];
-            echo '<td><input type = "text" name = "name" value=" '.htmlspecialchars($nameValue, ENT_QUOTES, 'UTF-8'). '"><br></td>';
-        }
-        else{
-            echo '<input type = "text" name = "name"><br>';
-        }
+        echo '<input type = "text" name = "name" value="'.htmlspecialchars($nameValue, ENT_QUOTES, 'UTF-8'). '"><br>';
+
+        $passValue = (isset($_SESSION['Student_login_Success']) && $_SESSION['Student_login_Success'] == true) ? $studentData['password'] : '';
+        echo 'パスワード';
+        echo '<input type = "password" name = "password" value="'.htmlspecialchars($passValue, ENT_QUOTES, 'UTF-8'). '"><br>';
         
         echo '<table border="1" width="800" cellpadding="10">'; //表の枠の太さ、幅、セルの余白を指定
             

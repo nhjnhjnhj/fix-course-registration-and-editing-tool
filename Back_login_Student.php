@@ -2,8 +2,8 @@
     session_start();
     header('Content-Type: text/html; charset=UTF-8'); //jsonファイル読み込みようにUTF-8に設定
 
-    const JSON_GRADE_NAME = array('B3','B4','Master'); //jsonファイル(学生のみ)の名前の配列
-    const JSON_FILE_NUM = 3; //jsonファイルの数(学年の数)
+    const JSON_GRADE_NAME = array('B3','B4','M1', 'M2'); //jsonファイル(学生のみ)の名前の配列
+    const JSON_FILE_NUM = 4; //jsonファイルの数(学年の数)
     $StudentSuccess = false;
     
     $_SESSION['NotFound_Student'] = false;

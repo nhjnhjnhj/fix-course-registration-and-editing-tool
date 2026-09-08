@@ -18,7 +18,7 @@
     const QUOTER_NAME = array('1Q','2Q','3Q','4Q'); //学年の配列
     const DAY_NAME = array('月','火','水','木','金','土'); //クオーターの配列
     const JSON_DAY_NAME = array('Mon','Tue','Wed','Thu','Fri','Sat'); //jsonファイルの曜日要素の配列
-    const GRADE_JSON_FILE = array('B3' => 'B3.json', 'B4' => 'B4.json', 'M1' => 'Master.json', 'M2' => 'Master.json', 'Prof' => 'Prof.json'); //学年とjsonファイル名の対応
+    const GRADE_JSON_FILE = array('B3' => 'B3.json', 'B4' => 'B4.json', 'M1' => 'M1.json', 'M2' => 'M2.json', 'Prof' => 'Prof.json'); //学年とjsonファイル名の対応
 
     if($code == HTTP_OK){
         session_start();
@@ -31,6 +31,14 @@
         if(isset($_SESSION['delete_success']) && $_SESSION['delete_success'] == true){ //削除完了ポップアップ(仮実装。後ほど作成予定)
             echo '<script>alert("削除が完了しました");</script>';
             unset($_SESSION['delete_success']);
+        }
+        if(isset($_SESSION['delete_all_success']) && $_SESSION['delete_all_success'] == true){ //全学生・先生データ削除完了ポップアップ
+            echo '<script>alert("全ての学生・先生のデータを削除しました");</script>';
+            unset($_SESSION['delete_all_success']);
+        }
+        if(isset($_SESSION['delete_prof_class_success']) && $_SESSION['delete_prof_class_success'] == true){ //Prof時間割クリア完了ポップアップ
+            echo '<script>alert("先生の時間割をクリアしました");</script>';
+            unset($_SESSION['delete_prof_class_success']);
         }
 
         //管理者ログインについてのポップアップ
@@ -100,7 +108,7 @@
         foreach($gradesByFile as $file => $grades){
             foreach($recordsByFile[$file] as $record){
                 if(!in_array($record['grade'] ?? '', $grades, true)){
-                    continue; //チェックされていない学年のレコードは無視(Master.json対策)
+                    continue; //チェックされていない学年のレコードは無視
                 }
                 if(isset($record['name']) && $record['name'] !== ''){
                     $studentNames[] = $record['name'];
@@ -134,7 +142,6 @@
         echo '</form>';
 
         //選択された学年・学期に登録されている授業を曜日・限ごとに集計する
-        //(Master.jsonはM1とM2が混在するため、ファイル単位でまとめて読み込み、record内のgradeで絞り込む)
         $quarterKey = 'Quarter' . mb_substr($selectedQuarter, 0, 1);
         $cellClasses = array();
         foreach(JSON_DAY_NAME as $day){
@@ -150,7 +157,7 @@
             if(is_array($records)){
                 foreach($records as $record){
                     if(!in_array($record['grade'] ?? '', $grades, true)){
-                        continue; //選択された学年と一致しないレコードは無視(Master.json対策)
+                        continue; //選択された学年と一致しないレコードは無視
                     }
 
                     //プルダウンで学生が指定されている場合、その学生以外のレコードは無視(学年フィルタとは併用可)
@@ -255,7 +262,8 @@
 
         if(isset($_SESSION['Prof_loginSuccess']) && $_SESSION['Prof_loginSuccess'] == true){
             echo '<button onclick="location.href=\'Prof_enter_table.php\'">Profの時間割を編集</button><br>'; //管理者モードならProfとして再ログインなしで授業登録ページへ
-            echo '<button onclick="location.href=\'logout.php\'">ログアウト</button><br>';
+            echo '<button onclick="location.href=\'delete_all.php\'">全ての学生・先生の授業データを削除</button><br>'; //管理者モード限定。delete_all.phpで再度パスワード確認の上、全データを削除する。
+             echo '<button onclick="location.href=\'logout.php\'">ログアウト</button><br>';
         }
 
     }

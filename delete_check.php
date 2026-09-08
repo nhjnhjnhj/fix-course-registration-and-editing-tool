@@ -24,6 +24,9 @@
     <?php
     $code = http_response_code(); //HTTPレスポンスコードを取得(404 Not Foundなど)
     const HTTP_OK = 200; //レスポンスコード200 = アクセス許可
+    const JSON_DAY_NAME = array('Mon','Tue','Wed','Thu','Fri','Sat'); //jsonファイルの曜日要素の配列
+    const QUOTER_KEY = array('Quarter1', 'Quarter2', 'Quarter3', 'Quarter4'); //jsonファイルの学期キー
+    const PERIOD_COUNT = 5; //1日あたりの限数
 
     if($code == HTTP_OK){
 
@@ -53,7 +56,27 @@
 
                     else{
                         $studentIndex = $_SESSION['student_index'];
-                        array_splice($data, $studentIndex, 1); //該当ユーザーを削除し、以降のindexを詰める
+                        $isProf = ($_SESSION['student_json_file'] === 'Prof.json');
+
+                        if($isProf){
+                            //Profはアカウント自体を削除するとBack_login_Prof.phpでログインできなくなるため、
+                            //grade/name/email/passwordは維持し、classの中身(各コマ)だけ空文字にリセットする(delete_all.phpと同じロジック)
+                            $emptyClass = array();
+                            foreach(QUOTER_KEY as $qKey){
+                                $emptyClass[$qKey] = array();
+                                foreach(JSON_DAY_NAME as $day){
+                                    $emptyClass[$qKey][$day] = array();
+                                    for($p = 1 ; $p <= PERIOD_COUNT ; $p++){
+                                        $emptyClass[$qKey][$day][(string)$p] = '';
+                                    }
+                                }
+                            }
+                            $data[$studentIndex]['class'] = $emptyClass;
+                        }
+
+                        else{
+                            array_splice($data, $studentIndex, 1); //該当ユーザーを削除し、以降のindexを詰める
+                        }
 
                         if(file_put_contents($jsonFile, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) === false){
                             $writeError = 'jsonファイルへの書き込みに失敗しました: ' . $jsonFile . '(書き込み権限を確認してください)';
@@ -64,6 +87,17 @@
                 if($writeError !== ''){
                     echo 'エラー: ' . htmlspecialchars($writeError, ENT_QUOTES, 'UTF-8') . '<br>';
                     echo '<button type="button" onclick="history.back()">戻る</button>';
+                }
+
+                else if($isProf){
+                    //Profはアカウントごと削除したわけではないので、管理者モードは維持したまま
+                    //Prof_enter_table.phpが仕込んだ疑似学生ログイン状態だけを解除する
+                    unset($_SESSION['Student_login_Success']);
+                    unset($_SESSION['student_json_file']);
+                    unset($_SESSION['student_index']);
+                    $_SESSION['delete_prof_class_success'] = true;
+                    header('Location: index.php');
+                    exit();
                 }
 
                 else{
