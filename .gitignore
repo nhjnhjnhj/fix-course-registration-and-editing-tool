@@ -1,5 +1,8 @@
 /json/
 fix-course-registration-and-editing-tool.code-workspace
 
-# 新学期開始処理が生成するロック・履歴・バックアップ
-/data/
+# 実行時データは除外し、設置用の空ロックファイルだけを管理する
+/data/*
+!/data/lock/
+/data/lock/*
+!/data/lock/student_data.lock

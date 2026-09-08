@@ -76,7 +76,7 @@ function steLoadStudent($projectRoot, $grade, $email)
     }
 
     // JSONの読み込み中に別処理が更新しないよう共有ロックを取得する。
-    $lockHandle = nspAcquireDataLock($projectRoot, false, false);
+    $lockHandle = studentDataAcquireLock($projectRoot, false, false);
     if ($lockHandle === false) {
         return array('success' => false, 'message' => '学生データを読み込むためのロックを取得できません。');
     }
@@ -91,10 +91,10 @@ function steLoadStudent($projectRoot, $grade, $email)
             throw new Exception('同じメールアドレスの学生が複数存在するため編集できません。');
         }
 
-        nspReleaseDataLock($lockHandle);
+        studentDataReleaseLock($lockHandle);
         return array('success' => true, 'student' => $match['student']);
     } catch (Exception $exception) {
-        nspReleaseDataLock($lockHandle);
+        studentDataReleaseLock($lockHandle);
         return array('success' => false, 'message' => $exception->getMessage());
     }
 }
@@ -140,7 +140,7 @@ function steUpdateStudentSchedule($projectRoot, $grade, $email, $schedule)
     }
 
     // 最新データの再読込から保存完了まで排他ロックで保護する。
-    $lockHandle = nspAcquireDataLock($projectRoot, true, false);
+    $lockHandle = studentDataAcquireLock($projectRoot, true, false);
     if ($lockHandle === false) {
         return array('success' => false, 'message' => '学生データを更新するためのロックを取得できません。');
     }
@@ -165,10 +165,10 @@ function steUpdateStudentSchedule($projectRoot, $grade, $email, $schedule)
         }
         nspReadStudentData($path);
 
-        nspReleaseDataLock($lockHandle);
+        studentDataReleaseLock($lockHandle);
         return array('success' => true, 'student' => $records[$match['index']]);
     } catch (Exception $exception) {
-        nspReleaseDataLock($lockHandle);
+        studentDataReleaseLock($lockHandle);
         return array('success' => false, 'message' => $exception->getMessage());
     }
 }

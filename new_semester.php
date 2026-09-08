@@ -19,7 +19,7 @@ $academicYear = (int) date('Y') + 1;
 $summaryError = '';
 $studentCounts = array('B3' => 0, 'B4' => 0, 'M1' => 0, 'M2' => 0);
 // 共有ロック中に各学年のデータを読み込み、確認用の人数を集計する。
-$lockHandle = nspAcquireDataLock(__DIR__, false, false);
+$lockHandle = studentDataAcquireLock(__DIR__, false, false);
 try {
     if ($lockHandle === false) {
         throw new Exception('学生データを確認できません。');
@@ -32,7 +32,7 @@ try {
     $summaryError = $exception->getMessage();
 }
 // 確認用データの読み込みが終わったため共有ロックを解除する。
-nspReleaseDataLock($lockHandle);
+studentDataReleaseLock($lockHandle);
 ?>
 <!DOCTYPE html>
 <html lang="ja">

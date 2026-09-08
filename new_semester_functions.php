@@ -5,6 +5,7 @@
  * 友人側のプログラムへ結合しやすいよう、画面表示とファイル操作を分離する。
  * PHP 5.4.16で使用できる構文だけを使用する。
  */
+require_once __DIR__ . '/student_data_lock.php';
 
 // 現在のセッションが管理者モードか確認する。
 function nspIsAdministrator()
@@ -44,41 +45,6 @@ function nspValidateCsrfToken($token)
 function nspEnsureDirectory($directory)
 {
     return is_dir($directory) || mkdir($directory, 0770, true);
-}
-
-// 学生データ用の共有ロックまたは排他ロックを取得する。
-function nspAcquireDataLock($projectRoot, $exclusive, $nonBlocking)
-{
-    $lockDirectory = $projectRoot . '/data/lock';
-    if (!nspEnsureDirectory($lockDirectory)) {
-        return false;
-    }
-
-    $handle = fopen($lockDirectory . '/student_data.lock', 'c');
-    if ($handle === false) {
-        return false;
-    }
-
-    $operation = $exclusive ? LOCK_EX : LOCK_SH;
-    if ($nonBlocking) {
-        $operation = $operation | LOCK_NB;
-    }
-
-    if (!flock($handle, $operation)) {
-        fclose($handle);
-        return false;
-    }
-
-    return $handle;
-}
-
-// 取得済みの学生データ用ロックを解除してファイルを閉じる。
-function nspReleaseDataLock($handle)
-{
-    if (is_resource($handle)) {
-        flock($handle, LOCK_UN);
-        fclose($handle);
-    }
 }
 
 // 学年と学生JSONファイル名の対応を返す。
@@ -283,7 +249,7 @@ function nspRunMigration($projectRoot, $academicYear, $resetSchedule)
         return array('success' => false, 'message' => '対象年度が正しくありません。');
     }
 
-    $lockHandle = nspAcquireDataLock($projectRoot, true, true);
+    $lockHandle = studentDataAcquireLock($projectRoot, true, true);
     if ($lockHandle === false) {
         return array('success' => false, 'message' => '別のデータ更新処理が実行中です。時間を置いて再実行してください。');
     }
@@ -329,7 +295,7 @@ function nspRunMigration($projectRoot, $academicYear, $resetSchedule)
             $counts[$grade] = count($records);
         }
 
-        nspReleaseDataLock($lockHandle);
+        studentDataReleaseLock($lockHandle);
         return array(
             'success' => true,
             'message' => $academicYear . '年度の新学期開始処理が完了しました。',
@@ -343,7 +309,7 @@ function nspRunMigration($projectRoot, $academicYear, $resetSchedule)
                 nspAtomicWrite($projectRoot . '/json/' . $fileName, $sourceData[$grade]['raw']);
             }
         }
-        nspReleaseDataLock($lockHandle);
+        studentDataReleaseLock($lockHandle);
         return array(
             'success' => false,
             'message' => $exception->getMessage(),

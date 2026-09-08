@@ -77,11 +77,13 @@ foreach ($realSelectedGrades as $grade) {
 }
 
 $recordsByFile = [];
+$dataLockHandle = studentDataAcquireLock(__DIR__, false, false);
 foreach ($gradesByFile as $file => $grades) {
-    $json = @file_get_contents(__DIR__ . '/json/' . $file);
+    $json = $dataLockHandle !== false ? @file_get_contents(__DIR__ . '/json/' . $file) : false;
     $records = $json !== false ? json_decode($json, true) : null;
     $recordsByFile[$file] = is_array($records) ? $records : [];
 }
+studentDataReleaseLock($dataLockHandle);
 
 // 選択中の学年から学生名の絞り込み候補を作成する。
 $studentNames = [];

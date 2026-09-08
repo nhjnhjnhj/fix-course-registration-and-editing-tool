@@ -13,7 +13,7 @@ $loadError = '';
 $studentsByGrade = array('B3' => array(), 'B4' => array(), 'M1' => array(), 'M2' => array());
 
 // 読み込み中の更新を避けるため、共有ロックを取得して全学年を読み込む。
-$lockHandle = nspAcquireDataLock(__DIR__, false, false);
+$lockHandle = studentDataAcquireLock(__DIR__, false, false);
 try {
     if ($lockHandle === false) {
         throw new Exception('学生データを読み込むためのロックを取得できません。');
@@ -25,7 +25,7 @@ try {
 } catch (Exception $exception) {
     $loadError = $exception->getMessage();
 }
-nspReleaseDataLock($lockHandle);
+studentDataReleaseLock($lockHandle);
 ?>
 <!DOCTYPE html>
 <html lang="ja">

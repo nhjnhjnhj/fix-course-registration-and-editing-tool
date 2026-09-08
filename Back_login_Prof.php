@@ -1,9 +1,16 @@
 <?php
     //Back_login_Porf 処理を行うためだけのファイル。即時遷移するため、ページは不要。
     session_start(); //_SESSIONを使うための処理
+    require_once __DIR__ . '/student_data_lock.php';
     header('Content-Type: text/html; charset=UTF-8'); //jsonファイル読み込みようにUTF-8に設定
 
-    $json = file_get_contents(__DIR__ . '/json/Prof.json'); //参照するjsonファイルを指定
+    $dataLockHandle = studentDataAcquireLock(__DIR__, false, false);
+    if($dataLockHandle === false){
+        http_response_code(503);
+        exit('管理者データの読み込みロックを取得できませんでした。');
+    }
+    $json = $dataLockHandle !== false ? file_get_contents(__DIR__ . '/json/Prof.json') : false; //参照するjsonファイルを指定
+    studentDataReleaseLock($dataLockHandle);
     $data_Prof = json_decode($json, true); //jsonファイルを配列に変換
 
     //遷移先はオープンリダイレクト対策のため固定の2択のみ(通常ログインはindex.php、全データ削除時はdelete_all.php)

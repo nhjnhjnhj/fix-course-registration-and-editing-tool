@@ -1,5 +1,6 @@
 <?php
     session_start();
+    require_once __DIR__ . '/student_data_lock.php';
 
     //ブラウザの「戻る」操作でキャッシュ(bfcache)から古い画面が復元されるのを防ぐ(HTML出力より前に呼ぶ必要がある)
     header('Cache-Control: no-store, no-cache, must-revalidate');
@@ -46,11 +47,18 @@
             if(isset($_POST['confirmDelete']) && $_POST['confirmDelete'] == '1'){
                 //「はい」が押されたのでjsonファイルから該当ユーザーを削除する
                 $writeError = '';
+                $dataLockHandle = studentDataAcquireLock(__DIR__, true, false);
+                if($dataLockHandle === false){
+                    $writeError = '学生データの更新ロックを取得できませんでした。';
+                }
 
                 $jsonFile = __DIR__ . '/json/' . $_SESSION['student_json_file'];
-                $json = file_get_contents($jsonFile);
+                $json = $dataLockHandle !== false ? file_get_contents($jsonFile) : false;
 
-                if($json === false){
+                if($dataLockHandle === false){
+                    // ロック取得時に設定したエラーを維持する。
+                }
+                else if($json === false){
                     $writeError = 'jsonファイルの読み込みに失敗しました: ' . $jsonFile;
                 }
 
@@ -90,6 +98,8 @@
                         }
                     }
                 }
+
+                studentDataReleaseLock($dataLockHandle);
 
                 if($writeError !== ''){
                     echo 'エラー: ' . htmlspecialchars($writeError, ENT_QUOTES, 'UTF-8') . '<br>';

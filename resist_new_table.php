@@ -1,5 +1,6 @@
 <?php
     session_start();
+    require_once __DIR__ . '/student_data_lock.php';
 
     //ブラウザの「戻る」操作でキャッシュ(bfcache)から古いログイン状態の画面が復元されるのを防ぐ(HTML出力より前に呼ぶ必要がある)
     header('Cache-Control: no-store, no-cache, must-revalidate');
@@ -75,7 +76,13 @@
         if(isset($_SESSION['Student_login_Success']) && $_SESSION['Student_login_Success'] == true){
             //Back_login_Studentで定義したログインした学生の学年を参照
             $jsonFile = __DIR__ . '/json/' . $_SESSION['student_json_file'];
-            $json = file_get_contents($jsonFile);
+            $dataLockHandle = studentDataAcquireLock(__DIR__, false, false);
+            if($dataLockHandle === false){
+                echo '学生データの読み込みロックを取得できませんでした。';
+                exit();
+            }
+            $json = $dataLockHandle !== false ? file_get_contents($jsonFile) : false;
+            studentDataReleaseLock($dataLockHandle);
             $data_Student = json_decode($json, true);
 
             //Back_login_Studentで定義したログインした学生のファイルindexを参照

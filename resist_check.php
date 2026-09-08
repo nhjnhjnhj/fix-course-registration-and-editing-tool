@@ -12,6 +12,7 @@
 
     <?php
     session_start();
+    require_once __DIR__ . '/student_data_lock.php';
     $code = http_response_code(); //HTTPレスポンスコードを取得(404 Not Foundなど)
 
     const HTTP_OK = 200; //レスポンスコード200 = アクセス許可
@@ -65,14 +66,21 @@
             if(isset($_POST['final']) && $_POST['final'] == '1'){
                 //「登録」が押されたのでjsonファイルへ書き込む
                 $writeError = '';
+                $dataLockHandle = studentDataAcquireLock(__DIR__, true, false);
+                if($dataLockHandle === false){
+                    $writeError = '学生データの更新ロックを取得できませんでした。';
+                }
 
                 if($mode == 'new'){
                     $grade = isset($_POST['grade']) ? trim($_POST['grade']) : '';
                     $jsonFileName = isset($gradeJsonFiles[$grade]) ? $gradeJsonFiles[$grade] : 'B3.json';
                     $jsonFile = __DIR__ . '/json/' . $jsonFileName;
-                    $json = file_get_contents($jsonFile);
+                    $json = $dataLockHandle !== false ? file_get_contents($jsonFile) : false;
 
-                    if($json === false){
+                    if($dataLockHandle === false){
+                        // ロック取得時に設定したエラーを維持する。
+                    }
+                    else if($json === false){
                         $writeError = 'jsonファイルの読み込みに失敗しました: ' . $jsonFile;
                     }
 
@@ -102,9 +110,12 @@
 
                 else{ //logined : ログイン済みの学生の登録内容を更新
                     $jsonFile = __DIR__ . '/json/' . $_SESSION['student_json_file'];
-                    $json = file_get_contents($jsonFile);
+                    $json = $dataLockHandle !== false ? file_get_contents($jsonFile) : false;
 
-                    if($json === false){
+                    if($dataLockHandle === false){
+                        // ロック取得時に設定したエラーを維持する。
+                    }
+                    else if($json === false){
                         $writeError = 'jsonファイルの読み込みに失敗しました: ' . $jsonFile;
                     }
 
@@ -129,6 +140,8 @@
                         }
                     }
                 }
+
+                studentDataReleaseLock($dataLockHandle);
 
                 if($writeError !== ''){
                     echo 'エラー: ' . htmlspecialchars($writeError, ENT_QUOTES, 'UTF-8') . '<br>';
